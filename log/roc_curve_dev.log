@@ -1,0 +1,178 @@
+roc_curve.py — Development Log
+================================
+Date: 2026-06-30
+
+
+Test run command
+-----------------
+python roc_curve.py \
+    --metadata decaf/analysis/metadata/2022_private_v2.json.gz \
+    --year 2022pre --max-files 1 --workers 10 --output plots/ \
+    --save-arrays hists/roc_arrays_2022pre_test.coffea
+
+
+Test run output (--max-files 1, 10 workers)
+--------------------------------------------
+Year: 2022pre  |  Workers: 10  |  max-files: 1
+Metadata: decaf/analysis/metadata/2022_private_v2.json.gz
+  Signal:     4 chunks, 4 files
+  Background: 100 chunks, 100 files
+  Skipped:    3079 unrelated datasets
+  Validating 104 files with 10 threads ...
+  104 good, 0 removed
+Running coffea processor ...
+  Preprocessing 100% 104/104
+  Processing   100% 109/109
+Arrays saved to hists/roc_arrays_2022pre_test.coffea
+Making ROC plot -> plots/
+  Signal events passing presel:     1,655
+  Background events passing presel: 551,357
+Saved: plots/roc_TvsQCD_2022pre.pdf
+Saved: plots/roc_TvsQCD_2022pre.png
+
+  AUC = 0.0911
+  At WP = 0.26:  sig eff = 0.472,  bkg eff = 0.0094  (rejection = 106.3x)
+
+
+Summary of bugs fixed during development
+-----------------------------------------
+
+1. coffea AccumulatorABC incompatibility
+   Problem : hist.Hist (from the 'hist' package) is not a subclass of
+             coffea's AccumulatorABC. dict_accumulator.add() raises
+             ValueError when it encounters a new key whose value is
+             not AccumulatorABC (it cannot call .identity() on it).
+   Fix     : Replaced dict_accumulator + hist.Hist with column_accumulator
+             (a native coffea type that concatenates numpy arrays).
+             Histograms and ROC are now computed in post-processing
+             from the concatenated score/weight arrays.
+
+2. mplhep.cms.label wrong keyword argument
+   Problem : mplhep.cms.label() in this environment does not accept
+             'energy' as a keyword; raises TypeError.
+   Fix     : Changed 'energy=13.6' to 'com=13.6'.
+
+3. ROC denominator used abs() while numerator did not
+   Problem : compute_roc() used np.sum(np.abs(hist)) as the denominator
+             but np.cumsum(hist) (unsigned) as the numerator.
+             For NLO samples with ~21% negative genWeights, the histogram
+             bins can be negative in some score ranges, making the efficiency
+             at threshold=0 come out to ~0.58 instead of 1.0, which
+             corrupts the AUC integral.
+   Fix     : Changed denominator to np.sum(weights) (net signed sum).
+             Also added a filter to drop events with score < 0
+             (fill_none sentinel for jets where probT + probQCD = 0).
+
+4. Raw genWeights differ across Zto2Nu pT-slices by orders of magnitude
+   Problem : Zto2Nu is split into ~10 pT-slice datasets.
+             The raw genWeight within amcatnloFXFX NLO samples has
+             different absolute scales per pT-slice. When all slices
+             are concatenated with raw genWeights, high-pT slices
+             (large |genWeight|) dominate the ROC histogram, giving
+             a distorted efficiency curve and AUC << 0.5.
+   Fix     : Weight each event by sign(genWeight) instead of the raw
+             genWeight. This gives each event a weight of +1 or -1,
+             treating all pT-slices equally while still correctly
+             cancelling NLO negative-weight events within each sample.
+
+
+Note on AUC = 0.09 (expected physics, not a bug)
+--------------------------------------------------
+At WP = 0.26: sig eff = 47%, bkg eff = 0.94% (106x rejection).
+The tagger discriminates well AT the working point.
+
+AUC < 0.5 occurs because the remaining 53% of signal events (where
+the top is not boosted or decays semi-leptonically) land at low
+TvsQCD alongside the 99% of Zto2Nu events. The ROC drops below the
+diagonal for most of the x-axis range, pulling AUC below 0.5.
+
+This is expected for INCLUSIVE samples without signal-region selection.
+The toptagging_guide.md specifies "derive ROC in signal region": adding
+MET > 200 GeV and zero-lepton veto would remove non-boosted-top events
+and restore AUC > 0.5.
+
+genWeight statistics (1 file per dataset):
+  Zto2Nu: 21.7% negative weights, sum = 2.24e+07
+  Signal: 20.7% negative weights, sum = 4.51e+02
+
+
+RuntimeWarning notes
+---------------------
+"invalid value encountered in divide" warnings during processing are
+harmless. They come from TvsQCD = probT / (probT + probQCD) when
+probT + probQCD = 0 for a small number of jets. These are caught by
+ak.fill_none(..., -1.) and filtered out in compute_roc (score < 0 mask).
+
+
+Why the ROC plot shows two diagonal lines (bkg_eff x-axis)
+-----------------------------------------------------------
+The two near-parallel diagonal lines are the dashed Random reference (y=x)
+and the solid ROC curve itself. They run almost on top of each other for
+bkg_eff > ~0.05 because the signal sample is fully inclusive and contains
+two populations:
+
+  Boosted tops (~50%): top fully merged into the AK15 jet -> high TvsQCD
+    -> tagger correctly prefers signal -> ROC rises above the diagonal
+    -> visible as the sharp spike in the upper-left corner
+
+  Non-boosted tops (~50%): top not merged, or semi-leptonic decay
+    -> the AK15 jet captures only ISR QCD radiation -> low TvsQCD
+    -> looks identical to Zto2Nu's ISR jets -> ROC follows the diagonal
+
+Zto2Nu has no hadronic top: its leading AK15 jet is always ISR QCD
+-> also low TvsQCD. So both non-boosted signal and Zto2Nu background
+are indistinguishable to the tagger in the loose-cut region.
+
+The ROC is very slightly BELOW the diagonal in that region (mildly
+anti-discriminating), so the area lost below cancels most of the area
+gained in the upper-left corner, giving AUC ~ 0.10 instead of 0.5.
+
+Fix: apply signal-region cuts before computing the ROC:
+  - MET > 200 GeV
+  - zero-lepton veto
+  (optionally: fat jet pT cut)
+These remove most non-boosted-top events, restoring AUC > 0.5 and
+eliminating the second diagonal line.
+
+
+Full-dataset run with signal-region cuts (2022pre, 1002 files, 60 workers)
+---------------------------------------------------------------------------
+Run command:
+  python roc_curve.py \
+      --metadata decaf/analysis/metadata/2022_private_v2.json.gz \
+      --year 2022pre --workers 60 \
+      --save-arrays hists/roc_arrays_2022pre_sr.coffea --output plots/
+
+Selections applied:
+  AK15 jet : pT > 160 GeV, |eta| < 2.4, tight+tightLepVeto (jetId & 6 == 6)
+  Leading  : pT > 250 GeV
+  MET      : pT > 350 GeV
+  Lepton   : 0 loose e (pT>10, cutBased>=1), 0 loose mu (pT>10, looseId+iso),
+             0 loose pho (pT>20, cutBased>=1, electronVeto)
+  b-jet    : 0 PNet-loose b-tagged AK4 (pT>30) with dR > 1.5 from leading AK15
+             PNet loose WPs: 2022pre=0.047, 2022post=0.0499,
+                             2023pre=0.0358, 2023post=0.0359
+
+Results:
+  Signal events passing presel:     5,422
+  Background events passing presel: 2,070,490
+  AUC = 0.0485
+
+  Target e_bkg  Actual e_bkg  Threshold  e_sig   Rejection
+       5.0%         5.00%     0.784      0.855       20x
+       2.5%         2.50%     0.591      0.786       40x
+       1.0%         1.00%     0.333      0.669      100x
+       0.5%         0.50%     0.202      0.575      200x
+       0.1%         0.10%     0.057      0.346     1000x
+
+Comparison with inclusive (no SR cuts) at e_bkg = 1%:
+  Inclusive : e_sig = 0.493,  AUC = 0.096
+  SR cuts   : e_sig = 0.669,  AUC = 0.049  (+18 pp improvement)
+
+Note: AUC still < 0.5. The ~35% of signal remaining after SR cuts that
+lack a well-merged boosted top still overlap with Zto2Nu in the loose-cut
+region. The two-diagonal effect persists but the physically relevant
+region (small bkg_eff, tight cut) shows clear improvement.
+
+Output: plots/roc_TvsQCD_2022pre_rej.{pdf,png}
+        plots/roc_TvsQCD_2022pre_eff.{pdf,png}

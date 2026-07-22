@@ -1,0 +1,151 @@
+Year: 2022pre  |  Workers: 60
+Metadata: decaf/analysis/metadata/2022_private_v2.json.gz
+  Signal:     4 chunks, 40 files
+  Background: 100 chunks, 962 files
+  Skipped:    3079 unrelated datasets
+  Validating 1002 files with 60 threads ...
+  1002 good, 0 removed
+Running coffea processor ...
+  Preprocessing 100% ━━━━━━━━━━━ 1002/1002 [ 0:00:17 < 0:00:00 | 57.5   file/s ]
+Merging (local)   0%                1/1002 [ 0:00:17 < -:--:-- | ?    merges/s ]
+     Processing 100% ━━━━━━━━━━ 1054/1054 [ 0:00:27 < 0:00:00 | 39.5   chunk/s ]
+Merging (local)   0%               4/1054 [ 0:00:27 < 0:00:05 | 232.4 merges/s ]
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+/home/jhong/envs/p38/lib/python3.8/site-packages/awkward/_connect/_numpy.py:197: RuntimeWarning: invalid value encountered in divide
+  result = getattr(ufunc, method)(
+Arrays saved to hists/roc_arrays_2022pre.coffea
+Making ROC plot → plots/
+  Signal events passing presel:     16,364
+  Background events passing presel: 5,933,357
+
+  AUC = 0.0957
+
+  Target ε_bkg  Actual ε_bkg  Threshold    ε_sig   Rejection
+  ------------  ------------  ---------  -------  ----------
+          5.0%         5.01%     0.7150    0.721       20.0x
+          2.5%         2.50%     0.5080    0.631       40.0x
+          1.0%         1.00%     0.2700    0.493      100.2x
+          0.5%         0.50%     0.1600    0.396      199.8x
+          0.1%         0.10%     0.0470    0.222     1004.1x
+Saved: plots/roc_TvsQCD_2022pre_rej.pdf
+Saved: plots/roc_TvsQCD_2022pre_rej.png
+Saved: plots/roc_TvsQCD_2022pre_eff.pdf
+Saved: plots/roc_TvsQCD_2022pre_eff.png
+Done.

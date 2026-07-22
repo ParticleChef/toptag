@@ -1,0 +1,98 @@
+How roc_curve.py runs and how to split jobs
+============================================
+
+Machine specs (this server)
+----------------------------
+CPU : AMD EPYC 9354 x2 = 128 cores
+RAM : 251 GB total
+Load check: uptime / free -h
+
+Current safe worker counts (from toptagging_guide.md):
+  load < 20  -> --workers 60
+  load 20-60 -> --workers 40  (default)
+  load > 60  -> --workers 20
+
+
+How the job runs internally
+----------------------------
+coffea futures_executor uses Python's ProcessPoolExecutor.
+Each worker is a separate OS process (not a thread) -- bypasses the GIL.
+
+  python roc_curve.py  (main process)
+      |
+      +-- ProcessPoolExecutor(workers=40)
+              +-- worker 0:  reads chunk 0 -> ROCProcessor.process() -> returns mini-hist
+              +-- worker 1:  reads chunk 1 -> ...
+              +-- ...
+              +-- worker 39: reads chunk N -> ...
+      |
+      +-- accumulates all mini-hists into one merged dict
+
+Each worker:
+  - Opens 1 ROOT file at a time via uproot
+  - Runs process() -> returns a small TvsQCD histogram
+  - Uses ~1-2 GB RAM peak per worker
+
+With 40 workers: ~40-80 GB RAM total. Well within 231 GB available.
+
+
+Is it safe to run directly?
+----------------------------
+Yes. The job reads 1002 files total:
+  - Signal (Mphi-1000_Mchi-150): 40 files
+  - Background (Zto2Nu):        962 files
+
+Estimated runtime: ~1002 files / 40 workers x ~10 s/file ~ 4 minutes.
+
+Always check load first:
+  uptime     # keep total load below ~100
+  free -h    # make sure RAM is available
+
+
+Standard run command
+---------------------
+cd /home/jhong/run3Monotop/toptag
+source ~/envs/p38/bin/activate
+
+python roc_curve.py \
+    --metadata decaf/analysis/metadata/2022_private_v2.json.gz \
+    --year 2022pre --workers 40 \
+    --save-hists hists/roc_2022pre.coffea --output plots/
+
+
+How to split the job
+---------------------
+
+Option A: Quick smoke test (1 file per chunk, ~40 files)
+  python roc_curve.py ... --max-files 1 --workers 10
+
+  Use this first to confirm the script runs end-to-end before
+  committing to the full dataset.
+
+Option B: Run in the background with nohup (recommended for long runs)
+  nohup python roc_curve.py \
+      --metadata decaf/analysis/metadata/2022_private_v2.json.gz \
+      --year 2022pre --workers 40 \
+      --save-hists hists/roc_2022pre.coffea --output plots/ \
+      > log/roc_2022pre.log 2>&1 &
+  echo "PID: $!"
+  tail -f log/roc_2022pre.log
+
+  The process keeps running even if the SSH session drops.
+  --save-hists writes a .coffea checkpoint so you can replot instantly
+  without rerunning the full job.
+
+Option C: Replot from saved histograms (instant, no reprocessing)
+  python roc_curve.py --load-hists hists/roc_2022pre.coffea --output plots/
+
+  Use this to change plot style or axis labels without re-reading files.
+
+
+Output
+-------
+  plots/roc_TvsQCD_2022pre.pdf
+  plots/roc_TvsQCD_2022pre.png
+
+Stdout summary:
+  AUC = 0.9821
+  At WP = 0.26: sig eff = 0.670, bkg eff = 0.0098  (rejection = 102.0x)
