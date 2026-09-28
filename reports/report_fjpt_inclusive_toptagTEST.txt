@@ -1,0 +1,242 @@
+fjpt Data/MC Stack Plots — TvsQCD inclusive, per region
+hadmonotop2022_toptagTEST.scaled  and  ...TEST2.scaled
+Report date: 2026-09-22
+Last updated: 2026-09-22 (x-axis redrawn to 1000 GeV, overflow)
+
+============================================================
+HOW TO RUN
+============================================================
+The script lives in toptag/studies/ and is standalone: no
+arguments, no notebook, no manual function calls. It can be run
+from ANY directory — it resolves its own paths against the
+analysis working directory (/Users/hongjieun/working), where the
+.scaled inputs live and where the plot directories are written.
+
+Use the plot_env interpreter — the system default Python 3.7
+CANNOT read these .scaled files (pickle protocol 5):
+
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      toptag/studies/plot_fjpt_inclusive_toptagTEST.py
+
+or activate the environment first:
+
+  conda activate plot_env
+  python toptag/studies/plot_fjpt_inclusive_toptagTEST.py
+
+Produces:
+  plots_2022_toptagTEST_0922_fjpt_incl/    8 plots (file a)
+  plots_2022_toptagTEST2_0922_fjpt_incl/   8 plots (file b)
+
+Running a script recreates its output directory and
+OVERWRITES the plots in place, and prints its table to
+stdout. To keep the printed table:
+
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      toptag/studies/plot_fjpt_inclusive_toptagTEST.py | tee fjpt_incl_table.txt
+
+Input file(s) and output directory are set in the CONFIG block
+at the top of each script; nothing else needs editing.
+
+Both input files must be present in this directory; the script
+loops over both. To plot only one, edit the INPUT_FILES dict at
+the top. To change the drawn overflow edge, edit X_MAX.
+
+============================================================
+1. WHAT WAS PLOTTED
+============================================================
+Variable: fjpt (AK15 leading jet pT), axes region x fjpt x TvsQCD
+Binning:  250, 325, 400, 600, 2000 GeV (4 bins)
+
+X-AXIS: drawn from 250 to 1000 GeV. The final 600-2000 GeV bin
+is an OVERFLOW BIN closing at 1000 GeV — bin CONTENTS are
+untouched, only the drawn right edge moves, and the last data
+point is placed at the center of the bin AS DRAWN (800 GeV),
+not at its true center. The last bin therefore represents all
+jets with fjpt >= 600 GeV, which the legend states on every
+plot. Same convention as the alpha and efficiency plots in
+this series, so the x-axes now match across all of them.
+
+TvsQCD INCLUSIVE: the TvsQCD axis is SUMMED over both bins
+(fail + pass), i.e. NO top-tagging requirement. This is the
+pre-tag spectrum — the same quantity whose integral defines
+alpha in report_alpha_toptagTEST.txt.
+
+NO JET-CLASS SPLIT, as requested — and note it could not have
+been done anyway: `fjpt` carries no class axes, and the
+class-split histogram `fjpt_cat` is background-only (truth
+quark / b-flavor matching is undefined for data), so a data/MC
+comparison is only possible on `fjpt`.
+
+One stack + ratio plot per region, for all 8 regions:
+  sr, wmcr, tmcr, zmcr, wecr, tecr, gcr, zecr
+Data dataset per region follows the standard mapping
+(MET for sr/wmcr/tmcr/zmcr, EGamma for wecr/tecr/gcr/zecr).
+
+Code: plot_fjpt_inclusive_toptagTEST.py
+
+This is the TvsQCD-inclusive counterpart of
+plot_fjpt_toptagTEST.py, which makes the same plots split into
+toptag_fail / toptag_pass. Style, layout, colors, stack order
+and legend are deliberately identical so the three sets can be
+read side by side.
+
+--- Both input files -------------------------------------
+Plotted from BOTH test files, into separate directories,
+because they carry different process lists:
+
+  (a) toptagTEST   8 processes, NO QCD Multijet, NO G + Jets
+  (b) toptagTEST2  10 processes, both present
+
+They are different MC test samples. Compare each against its
+own data; do NOT compare their absolute yields against each
+other.
+
+--- One deliberate difference from plot_fjpt_toptagTEST.py ---
+The background uncertainty band here is sqrt(sum of squared
+weights), taken from the histograms' Weight storage. The
+existing pass/fail script uses sqrt(N) on the summed yield,
+which is only valid for unweighted entries; these MC entries
+are weighted. The visible consequence is a much SMALLER band
+than in the existing plots.
+
+Neither band is trustworthy on these files: sqrt(N) is the
+wrong formula, but the stored variances are themselves
+suspect (report_toptag_eff_toptagTEST.txt section 7 — they
+imply large, nearly uniform per-event weights and understate
+the true MC statistics). The formula used here is the correct
+one; the inputs to it are not yet validated.
+
+============================================================
+2. INTEGRALS (all 4 pT bins summed)
+============================================================
+--- (a) hadmonotop2022_toptagTEST.scaled ------------------
+  region   N(Data)      N(MC)      Data/MC
+  sr        805803      14728         54.7
+  wmcr       37635     2946.9         12.8
+  tmcr       13529     568.23         23.8
+  zmcr        6796     2113.9          3.2
+  wecr       36505       2167         16.9
+  tecr       13194     407.28         32.4
+  gcr       176356     62.651       2815
+  zecr        7712       1464          5.3
+
+--- (b) hadmonotop2022_toptagTEST2.scaled -----------------
+  region   N(Data)      N(MC)      Data/MC
+  sr        805803     9.5262     8.46e+04
+  wmcr       37635    0.84426     4.46e+04
+  tmcr       13529    0.12835     1.05e+05
+  zmcr        6796     3.0889         2200
+  wecr       36505    0.70703     5.16e+04
+  tecr       13194    0.10094     1.31e+05
+  gcr       176356    0.69365     2.54e+05
+  zecr        7712     2.3282         3312
+
+Cross-check: these integrals are consistent with the per-bin
+yields in report_alpha_toptagTEST.txt section 3 (e.g. gcr data
+95294+44401+30264+6397 = 176356; tmcr 13529; tecr 13194).
+
+============================================================
+3. WHAT THE PLOTS SHOW
+============================================================
+- THE RATIO PANELS ARE EMPTY IN EVERY REGION. Data/MC is 3 to
+  2.5e+05, far outside the plotted 0.5-1.5 window, so no point
+  is drawn. This is the panel behaving correctly, not a bug —
+  the same behaviour is already recorded in
+  report_fjpt_toptagTEST.txt lines 90-101.
+
+- THE DATA POINTS FLOAT FAR ABOVE THE STACK, by 1 to 5 decades
+  depending on region and file. Same cause as everywhere else
+  in this series: data is the full 2022preEE dataset while the
+  MC is a few-file test sample normalized with the FULL
+  sample's sum-of-weights. See report_alpha_toptagTEST.txt
+  section 5.
+
+- FILE (b) IS THE SMALLER SAMPLE BY FAR, despite having more
+  processes — its MC yields are 1e2 to 1e4 times lower than
+  file (a)'s in the same region. Do not read this as a physics
+  difference.
+
+- SHAPES ARE STILL READABLE, and shape is the only thing worth
+  reading here. The stack composition per region looks
+  sensible: W(lnu)+jets and tt dominate the W/tt CRs,
+  Z(ll)+jets the Z CRs, gamma+jets the photon CR.
+
+- IN THE ttbar CRs THE STACK IS NOT tt-DOMINATED at high pT —
+  W+jets and single top take over above ~400 GeV. This is the
+  same composition problem that breaks the Top-jet data
+  efficiency (report_toptag_eff_data_toptagTEST.txt section 5)
+  and is visible directly in these plots.
+
+============================================================
+4. CAVEATS
+============================================================
+- NOT A VALIDATED DATA/MC COMPARISON. Until the MC is
+  normalized to the full dataset, only shapes mean anything.
+  Do not quote any Data/MC number from section 2.
+
+- The background uncertainty band is formally correct but its
+  inputs are suspect — see section 1.
+
+- sr is NOT blinded in these plots. Data is drawn in the signal
+  region. That is fine for a normalization cross-check on a
+  test file, but do not reuse this script for anything public
+  without adding a blinding switch.
+
+- The last bin is an overflow bin: it holds every jet with
+  fjpt >= 600 GeV, up to 2000 GeV. Do not read its drawn width
+  (600-1000) as a real pT range, and do not integrate the
+  plotted spectrum as if the bins were uniform.
+
+============================================================
+5. OUTPUT
+============================================================
+plots_2022_toptagTEST_0922_fjpt_incl/     (file a, 8 regions)
+plots_2022_toptagTEST2_0922_fjpt_incl/    (file b, 8 regions)
+  stack_<region>_fjpt_incl.pdf / .png
+
+16 plots (32 files, PDF + PNG at 300 dpi).
+
+Layout, every plot:
+  upper panel  stepfilled background stack (black outlines,
+               linewidth 1.5), hatched bkg uncertainty band,
+               black data points, log y on decade-rounded
+               limits with decade-only major ticks
+  legend       Data first, backgrounds top-of-stack downward,
+               Bkg unc. last; title "<REGION>, TvsQCD inclusive
+               / last bin: pT >= 600 GeV" bold and centered
+  lower panel  Data/MC, 0.5-1.5, dashed line at 1, grey band
+               for the relative background uncertainty
+  x-axis       250 to 1000 GeV, last bin drawn as overflow
+  CMS Private Work, 7.99 fb^-1, 13.6 TeV
+
+Only processes actually present in a file are drawn, so the
+same script runs unchanged on both files.
+
+The script prints a per-region integral table to stdout
+(reproduced in section 2).
+
+============================================================
+6. RELATED FILES
+============================================================
+
+WHERE THINGS LIVE (all paths relative to /Users/hongjieun/working):
+  toptag/studies/   the plot_*.py scripts and the .ipynb
+  toptag/reports/   this report and its siblings
+  ./                the .scaled input files and every plots_*/
+                    output directory
+Bare filenames below are in those directories respectively.
+
+This report:
+  plot_fjpt_inclusive_toptagTEST.py
+  plots_2022_toptagTEST_0922_fjpt_incl/
+  plots_2022_toptagTEST2_0922_fjpt_incl/
+
+Same plots split by top-tag category:
+  plot_fjpt_toptagTEST.py / report_fjpt_toptagTEST.txt
+    plots_2022_toptagTEST2_0921_fjpt/{toptag_fail,toptag_pass}/
+
+The pre-tag integrals of these plots are the alpha inputs:
+  plot_alpha_toptagTEST.py / report_alpha_toptagTEST.txt
+
+Reference:
+  docs/cms_plot_style.md    plot style guide

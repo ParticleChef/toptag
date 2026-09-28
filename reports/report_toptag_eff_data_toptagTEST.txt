@@ -1,0 +1,430 @@
+Data-Side Top-Tag Efficiency and Scale Factor
+hadmonotop2022_toptagTEST.scaled  (Top-jet, ttbar CRs)
+hadmonotop2022_toptagTEST2.scaled (QCD-jet, gamma CR)
+Report date: 2026-09-21  (revised 2026-09-23: inputs moved to
+toptag/, plots to toptag/plots_effSF/; stat/syst split and
+SF error corrected, see section 2)
+
+Step 2 of the chain. Step 0 = alpha (report_alpha_toptagTEST.txt),
+step 1 = eff_MC (report_toptag_eff_toptagTEST.txt).
+
+HEADLINE: the QCD-jet measurement works and gives SF ~ 1.0-1.3.
+The Top-jet measurement DOES NOT WORK on this test sample — it
+returns efficiencies of 1.9-19.8 (raw) or negative (SF-corrected),
+both unphysical. Section 5 explains why; it is a property of the
+sample, not of the code.
+
+============================================================
+HOW TO RUN
+============================================================
+The script lives in toptag/studies/ and is standalone: no
+arguments, no notebook, no manual function calls. It can be run
+from ANY directory — it resolves its own paths against
+toptag/ (/Users/hongjieun/working/toptag), where the .scaled
+inputs live and where plots_effSF/ is written.
+
+Use the plot_env interpreter — the system default Python 3.7
+CANNOT read these .scaled files (pickle protocol 5).
+Commands below are run from /Users/hongjieun/working/toptag:
+
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      studies/plot_toptag_eff_data_toptagTEST.py
+
+or activate the environment first:
+
+  conda activate plot_env
+  python studies/plot_toptag_eff_data_toptagTEST.py
+
+Produces:
+  plots_effSF/effdata/<YEAR>/   (YEAR = 2022preEE here)
+    7 plots (14 files, PDF + PNG)
+
+Running a script creates plots_effSF/effdata/<YEAR>/ if missing
+and OVERWRITES the plots there in place, and prints its table to
+stdout. To keep the printed table:
+
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      studies/plot_toptag_eff_data_toptagTEST.py | tee effdata_table.txt
+
+The era is an optional command-line argument (default
+2022preEE), e.g. `... studies/<script>.py 2023preBPix`. It
+selects the input files (ERAS dict near the top of the script),
+the luminosity label (LUMIS, same values as toptag/histmaker.py)
+and the output sub-directory. To add an era, add an ERAS entry.
+Results for 2023preBPix: report_toptag_effSF_2023preBPix.txt.
+
+Histograms: efficiencies always come from fjpt_cat. alpha and the
+data yields come from ERAS[era]["alpha_var"]: `fjpt_bin` for new
+files (same pT edges as fjpt_cat), `fjpt` for these 2022 test
+files, which predate fjpt_bin. The script stops with a message
+if that histogram is empty or its pT edges differ from fjpt_cat.
+
+Both input files must be present in toptag/. The script
+enforces the ordering constraint of section 1 by itself: the
+QCD-jet job runs first and its SF_QCD is passed to the Top-jet
+job, so there is nothing to run in a particular order by hand.
+
+It needs no output from plot_alpha_toptagTEST.py or
+plot_toptag_eff_toptagTEST.py — alpha and eff_MC are recomputed
+internally from the same histograms, so the three scripts can be
+run in any order.
+
+============================================================
+1. FORMULAS
+============================================================
+Per toptag/README.md, the data efficiency of an aggregated class
+is the data yield with the OTHER classes subtracted, each scaled
+to data by the pre-tag normalization alpha = N(Data)/N(MC):
+
+  QCD-jet (gamma CR, gamma+jets sample, B-jet subtracted):
+    eff_Data = [N(Data,tag) - alpha*SF_B*N(GJ,B,tag)]
+             / [N(Data)     - alpha*SF_B*N(GJ,B)]
+
+  Top-jet (ttbar CRs, B-jet AND QCD-jet subtracted):
+    eff_Data = [N(Data,tag) - alpha*(SF_B*N(B,tag) + SF_QCD*N(QCD,tag))]
+             / [N(Data)     - alpha*(SF_B*N(B)     + SF_QCD*N(QCD))]
+
+  SF = eff_Data / eff_MC
+
+SF_B = 1.0 +- 0.5 (no dedicated CR exists for the B-jet class).
+
+--- Two Top-jet variants, both reported -------------------
+The README's boxed eff_Data formula subtracts the RAW MC B/QCD
+yields. toptag/docs/scalefactors.md argues the previously-derived
+SF_QCD should correct that term (the AN's "QCDMistag" uncertainty
+row would be meaningless otherwise), and scalefactors.py
+implements it that way. The two readings disagree enough here to
+change the sign of the answer, so BOTH are computed and plotted:
+
+  raw        SF_B = SF_QCD = 1 in the subtraction
+  corrected  SF_B = 1.0, SF_QCD from the gamma CR measurement below
+
+ORDERING CONSTRAINT: the QCD-jet measurement must run first, since
+the Top-jet corrected variant consumes its SF. The script enforces
+this by construction (JOBS_QCD loop feeds sf_qcd to JOBS_TOP).
+
+============================================================
+2. HOW THE TWO HISTOGRAMS ARE COMBINED
+============================================================
+The measurement needs data yields (which only `fjpt` has) and
+class-split MC yields (which only `fjpt_cat` has):
+
+  fjpt      region x fjpt x TvsQCD            data + bkg
+  fjpt_cat  + n_qinfj x n_binfj               bkg ONLY
+
+fjpt_cat has no data because the truth quark / b-flavor matching
+that defines the classes is undefined for data.
+
+VERIFIED BEFORE USE: summing fjpt_cat over both class axes
+reproduces fjpt bin-by-bin to machine precision (max relative
+difference 3.5e-16) for every region and both TvsQCD bins, in
+both files, and the two carry the same process keys. The two
+histograms are therefore the same events and can be combined
+directly.
+
+CONSEQUENCE — AN EXACT IDENTITY. alpha is defined pre-tag over
+ALL classes, so alpha * N(MC,all) = N(Data) exactly, per bin. The
+Top-jet denominator therefore collapses:
+
+  N(Data) - alpha*[N(B) + N(QCD)] == alpha * N(MC,Top)   (exact)
+
+Confirmed numerically to 6e-15 relative. This is why the huge,
+badly-normalized alpha of section 3 does NOT by itself wreck the
+measurement: alpha rescales MC onto data, and it cancels in the
+denominator. It does NOT cancel in the numerator, because
+N(Data,tag) is a real measurement and is not equal to
+alpha*N(MC,tag) — that difference is precisely the tagger
+mismodeling the SF is meant to capture.
+
+For the QCD-jet case only the GJ B-jet term is subtracted, so the
+denominator is alpha*[N(MC,all) - N(GJ,B)], which the AN
+approximates as alpha*N(GJ,QCD) (gamma+jets dominance). On this
+file that approximation is good to 22%, 13%, 6%, 6% across the
+four pT bins — the residual is the non-GJ processes, which are
+17%, 11%, 5%, 6% of the gcr MC.
+
+--- Uncertainties ------------------------------------------
+Linearized propagation by one-at-a-time finite differences, same
+convention and same uncorrelated-inputs caveat as
+toptag/scalefactors.py's propagate(). Sources:
+  stat       sqrt(variance) of every histogram term; data
+             variance equals the data yield (unweighted Poisson)
+  BJetMistag SF_B = 1 +- 0.5
+  BJetNorm   50% normalization uncertainty on the GJ B-jet MC,
+             folded into that term's sigma (QCD-jet job only)
+  QCDMistag  the derived SF_QCD +- its own error (Top-jet
+             corrected variant only)
+NOT propagated: JES, QCD scale/PDF, parton shower, TopPt
+reweighting — they need systematic-varied histograms that do not
+exist in these files.
+
+The "stat" figure in the breakdowns below is the same formula
+re-propagated with ONLY the histogram sqrt(variance) terms; "syst"
+is the quadrature remainder (SF_B, BJetNorm, QCDMistag).
+
+SF error: sigma_SF/SF = sqrt[(sigma_Data/eff_Data)^2
+                             + (sigma_MC/eff_MC)^2]
+with sigma_MC the eff_MC error of report_toptag_eff_toptagTEST.txt
+section 4. Its effect is negligible here (sigma_MC/eff_MC <= 2%),
+so the SF values below agree with the previous version.
+
+--- Correction (2026-09-23) --------------------------------
+The previous version of this report had two errors in the
+uncertainty treatment; the central values were not affected.
+  1. The stat-only variant kept the B-jet sigmas WITH the 50%
+     BJetNorm folded in, so that systematic was counted as
+     stat. The QCD-jet breakdown in section 3 was therefore
+     wrong (it read stat ~ syst). Fixed: stat now uses the pure
+     histogram variance of the B-jet terms.
+  2. SF error was sigma_Data/eff_MC only, ignoring the eff_MC
+     error. Fixed as above.
+The Top-jet breakdowns were not affected by (1): BJetNorm is
+applied to the QCD-jet job only.
+
+============================================================
+3. RESULTS — QCD-jet mis-tag rate (gamma CR)
+============================================================
+File (b), G + Jets sample, classes 1+3, data = EGamma.
+
+  pT [GeV]      alpha    N(Data)  N(D,tag)  eff_MC   eff_Data          SF
+   250-325    5.11e+07     95294      5988  0.0410  0.0511+-0.0097  1.246+-0.237
+   325-400    1.22e+07     44401      2626  0.0422  0.0421+-0.0141  0.996+-0.335
+   400-600    4.14e+05     30264      1679  0.0342  0.0435+-0.0098  1.272+-0.287
+  >=600 (of)  1.04e+04      6397       303  0.0301  0.0389+-0.0073  1.292+-0.243
+
+  eff_Data uncertainty breakdown
+    stat  0.0010  0.0014  0.0015  0.0029
+    syst  0.0096  0.0141  0.0097  0.0067   (SF_B + BJetNorm)
+
+THIS MEASUREMENT IS WELL BEHAVED:
+- eff_Data is 0.039-0.051, physical and close to eff_MC.
+- SF is consistent with 1 within ~1 sigma in every bin, and flat
+  in pT: 1.25, 1.00, 1.27, 1.29.
+- It is SYSTEMATICS-DOMINATED: syst is 2-10x stat in every
+  bin. The error is driven by the B-jet subtraction (SF_B =
+  1 +- 0.5 and the 50% GJ B-jet normalization), not by the data
+  statistics. Reducing it needs a B-jet constraint, not more
+  data.
+- It survives the broken normalization of section 5 because of
+  the alpha cancellation in section 2.
+
+Against the AN ballpark (toptag/README.md quotes QCD-jet SF
+~2-2.5 for Run 2): these values are LOW by roughly a factor 2.
+Not absurd, but not a match either — recheck on the full sample.
+
+============================================================
+4. RESULTS — Top-jet efficiency (ttbar CRs)
+============================================================
+File (a), all bkg processes, classes 5+6+7+8.
+
+--- raw subtraction (README literal) ----------------------
+  pT [GeV]     eff_MC    eff_Data              SF
+  tmcr+tecr
+   250-325     0.6701    1.856 +- 3.352    2.77 +- 5.00
+   325-400     0.7695    2.332 +- 5.842    3.03 +- 7.59
+   400-600     0.8255    6.124 +- 13.285   7.42 +- 16.09
+  >=600 (of)   0.8650   19.813 +- 26.694  22.91 +- 30.86
+
+--- SF-corrected subtraction (scalefactors.py reading) ----
+  tmcr+tecr
+   250-325     0.6701   -1.438 +- 1.539   -2.15 +- 2.30
+   325-400     0.7695    2.255 +- 6.970    2.93 +- 9.06
+   400-600     0.8255   -1.454 +- 1.033   -1.76 +- 1.25
+  >=600 (of)   0.8650   -0.758 +- 0.405   -0.88 +- 0.47
+
+Per channel (raw / corrected, combined column for reference):
+  pT [GeV]      tmcr raw   tecr raw   tmcr cor   tecr cor
+   250-325         1.739      1.988     -1.374     -1.483
+   325-400         2.335      2.336      2.258      2.257
+   400-600         6.145      6.139     -1.489     -1.417
+  >=600 (of)      19.248     20.587     -0.761     -0.755
+
+BOTH VARIANTS ARE UNPHYSICAL. An efficiency must lie in [0,1].
+The raw variant exceeds 1 in every bin and reaches 19.8; the
+corrected variant goes negative in 3 of 4 bins. The mu and e
+channels agree with each other closely, so this is not a channel
+problem — it is common to both.
+
+============================================================
+5. WHY THE TOP-JET MEASUREMENT FAILS HERE
+============================================================
+Two compounding reasons, both visible in the yields.
+
+(a) DATA TAGS FAR MORE OFTEN THAN MC. Tagged fraction,
+    N(tagged)/N(total), pre-tag-normalized:
+
+      pT [GeV]     Data     MC      Data/MC
+       250-325    0.331    0.241      1.38
+       325-400    0.359    0.233      1.54
+       400-600    0.373    0.143      2.61
+      >=600 (of)  0.267    0.073      3.65
+
+    (tmcr and tecr separately give the same pattern.) After alpha
+    normalization the MC underpredicts the tagged yield by up to
+    3.6x. The subtraction attributes that entire excess to the
+    Top-jet class, which inflates the numerator without touching
+    the denominator.
+
+(b) THE TOP-JET CLASS IS TINY IN THIS SAMPLE, so the denominator
+    is a small residual of a large subtraction. Pre-tag class
+    composition of the ttbar CRs:
+
+      pT [GeV]    Top-jet   B-jet   QCD-jet
+       250-325      7.6%    25.2%    67.2%
+       325-400      8.1%    23.5%    68.5%
+       400-600      4.3%    15.2%    80.5%
+      >=600 (of)    1.0%     8.5%    90.4%
+
+    The raw subtraction removes 92%, 92%, 96%, 99% of the data
+    total; what is left is a 1-8% residual, and every percent of
+    mismodeling in the 92-99% lands on it multiplied.
+
+    The corrected variant scales the QCD-jet term — which alone
+    is 67-90% of the MC — by SF_QCD ~ 1.25. The subtraction then
+    removes 109%, 92%, 118%, 125% of the data total and the
+    denominator goes NEGATIVE (-733, +602, -1509, -684 events).
+
+A ttbar control region in which 90% of AK15 jets are pure-QCD
+jets and 1% are top jets is not a ttbar control region. This is
+the same defect already recorded in
+report_toptag_eff_toptagTEST.txt section 7: classes 7 and 8 are
+EMPTY in this file and the "Top-jet" class is almost entirely
+class 6 (2 quarks + b), i.e. fully-merged hadronic tops are
+essentially absent. The eff_MC measurement survived that because
+it is a ratio WITHIN the Top-jet class; eff_Data does not,
+because it needs the class to be a significant fraction of the
+region.
+
+NOT A CODE BUG. The same code path, with the same alpha
+machinery and the same error propagation, gives a clean result
+for the QCD-jet class in section 3, where the target class is
+~85% of the region instead of ~5%.
+
+============================================================
+6. CAVEATS — READ BEFORE USING THESE NUMBERS
+============================================================
+- DO NOT USE ANY TOP-JET NUMBER IN SECTION 4. They are
+  unphysical. They are reported so the failure is on record and
+  reproducible, not because they mean anything.
+
+- THE QCD-JET NUMBERS ARE PLAUSIBLE BUT NOT VALIDATED. The
+  alpha cancellation (section 2) protects the ratio. The
+  gamma+jets MC in file (b) is only 1.9e-03 weighted events in
+  the lowest pT bin, but that is a normalization artifact: the
+  effective MC statistics are 67k+ events (see
+  report_toptag_eff_toptagTEST.txt section 7), and the error is
+  dominated by the B-jet subtraction systematics anyway (section
+  3). Treat SF ~ 1.0-1.3 as a test-sample result, and note it
+  sits a factor ~2 below the AN's Run 2 ballpark of 2-2.5.
+
+- UNCERTAINTIES REMAIN INCOMPLETE. Only stat, SF_B, BJetNorm and
+  QCDMistag are propagated. The AN's dominant systematics for
+  these SFs (final-state PS, TopPt reweighting, JES) are absent,
+  so the quoted errors are lower bounds. The inputs are also
+  treated as uncorrelated although the tagged yields are subsets
+  of their own totals.
+
+- THE TWO MEASUREMENTS COME FROM DIFFERENT TEST FILES, and the
+  Top-jet corrected variant consumes an SF_QCD derived in the
+  other one. Legitimate in the real pipeline (different regions,
+  same year); here it crosses two unrelated test samples.
+
+- THE RAW vs CORRECTED AMBIGUITY IS UNRESOLVED. On this sample
+  it flips the sign of the answer, so it cannot be settled here.
+  Settle it on the full sample, where the subtraction should be a
+  small correction rather than 92-125% of the total.
+
+- alpha IS STILL BROKEN IN ABSOLUTE TERMS (1e1-1e7 instead of
+  O(1)) — see report_alpha_toptagTEST.txt section 5. It cancels
+  in the denominator but the sample it comes from is still a few
+  files normalized as if it were the full dataset.
+
+- The overflow bin is drawn with a right edge of 1000 GeV. Do
+  not read its width as a real pT range.
+
+============================================================
+7. OUTPUT
+============================================================
+plots_effSF/effdata/2022preEE/
+  effdata_qcdjet_gcr.pdf            / .png
+  effdata_topjet_ttcr_combined.pdf  / .png
+  effdata_topjet_ttcr_combined_zoom / .png
+  effdata_topjet_tmcr.pdf           / .png
+  effdata_topjet_tmcr_zoom          / .png
+  effdata_topjet_tecr.pdf           / .png
+  effdata_topjet_tecr_zoom          / .png
+
+7 plots (14 files, PDF + PNG at 300 dpi).
+
+Layout, every plot:
+  upper panel  eff vs pT — black circles = MC truth (with the
+               eff_MC error, mostly smaller than the marker), red squares
+               = Data. Top-jet plots carry a second Data series
+               (blue triangles) for the SF-corrected subtraction.
+               A grey dotted line marks eff = 1; anything above
+               it is unphysical.
+  lower panel  SF = eff_Data / eff_MC, red dashed line at 1
+  CMS Private Work, 7.99 fb^-1, 13.6 TeV, x-axis 250-1000 GeV
+
+The Top-jet plots come in two y-ranges, the same convention as
+the eff_MC plots: the default spans -5 to 25 so the failure is
+visible, and _zoom spans the physical 0 to 1.5 (most Data points
+then fall off the axis, which is the point). The QCD-jet plot
+needs only one range.
+
+Series are offset horizontally so their error bars stay readable.
+
+The script prints the full per-bin table, including the
+stat/syst breakdown, to stdout (reproduced in sections 3-4).
+
+============================================================
+8. WHAT TO DO NEXT
+============================================================
+1. Re-run on the FULL sample. Everything in section 5 is a
+   statement about this test file.
+2. Check these three things before reading any SF:
+     alpha ~ O(1) in every bin and region
+     Top-jet class is a SIZEABLE fraction of the ttbar CRs
+       (the AN's procedure implicitly assumes this)
+     classes 7 and 8 are NOT empty
+   If the Top-jet fraction is still ~5%, the problem is in the
+   truth matching (toptag/classifiers.py), not here.
+   UPDATE 2026-09-23: probably not the truth matching. TT alone
+   gives Top-jet in 31% of its jets, but TT is only 10.6% of
+   the ttbar-CR MC in this file (W+jets 44.8%). Check the TT
+   normalization / CR selection first. See
+   report_toptag_effSF_2023preBPix.txt section 5.
+3. Only then settle raw vs SF-corrected subtraction.
+4. Then write the SF to correctionlib via toptag/scalefactors.py
+   and validate with toptag/validate.py.
+
+============================================================
+9. RELATED FILES
+============================================================
+
+WHERE THINGS LIVE (all paths relative to /Users/hongjieun/working/toptag):
+  studies/       the plot_*.py scripts and the .ipynb
+  reports/       this report and its siblings
+  ./             the .scaled input files
+  plots_effSF/   every alpha / eff_MC / eff_Data / SF plot, as
+                 plots_effSF/{alpha,eff,effdata}/<YEAR>/
+Bare filenames below are in those directories respectively.
+EXCEPTION: the fjpt / fjpt_cat study scripts (not part of the
+SF chain) still read their inputs from, and write their
+plots_2022_*/ directories into, /Users/hongjieun/working.
+
+This report:
+  plot_toptag_eff_data_toptagTEST.py
+  plots_effSF/effdata/2022preEE/
+
+Inputs to this step:
+  plot_alpha_toptagTEST.py / report_alpha_toptagTEST.txt
+    plots_effSF/alpha/2022preEE/
+  plot_toptag_eff_toptagTEST.py / report_toptag_eff_toptagTEST.txt
+    plots_effSF/eff/2022preEE/
+
+Reference:
+  toptag/README.md               eff_Data and SF formulas
+  toptag/scalefactors.py         reference implementation
+  toptag/docs/scalefactors.md    raw vs SF-corrected discussion
+  docs/cms_plot_style.md         plot style guide

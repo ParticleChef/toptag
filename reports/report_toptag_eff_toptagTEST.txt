@@ -1,0 +1,390 @@
+Top-Tag Efficiency Report — Top-jet and QCD-jet classes
+hadmonotop2022_toptagTEST.scaled  (Top-jet, ttbar CR)
+hadmonotop2022_toptagTEST2.scaled (QCD-jet, gamma CR)
+Report date: 2026-09-21  (revised 2026-09-23: inputs moved to
+toptag/, plots to toptag/plots_effSF/)
+
+Self-contained. Sections 1-3 repeat the shared background from
+report_fjpt_toptagTEST.txt so this file can be read on its own;
+sections 4-8 are the efficiency measurement itself.
+
+============================================================
+HOW TO RUN
+============================================================
+The script lives in toptag/studies/ and is standalone: no
+arguments, no notebook, no manual function calls. It can be run
+from ANY directory — it resolves its own paths against
+toptag/ (/Users/hongjieun/working/toptag), where the .scaled
+inputs live and where plots_effSF/ is written.
+
+Use the plot_env interpreter — the system default Python 3.7
+CANNOT read these .scaled files (pickle protocol 5).
+Commands below are run from /Users/hongjieun/working/toptag:
+
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      studies/plot_toptag_eff_toptagTEST.py
+
+or activate the environment first:
+
+  conda activate plot_env
+  python studies/plot_toptag_eff_toptagTEST.py
+
+Produces:
+  plots_effSF/eff/<YEAR>/   (YEAR = 2022preEE here)
+    5 plots (10 files, PDF + PNG)
+
+Running a script creates plots_effSF/eff/<YEAR>/ if missing
+and OVERWRITES the plots there in place, and prints its table to
+stdout. To keep the printed table:
+
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      studies/plot_toptag_eff_toptagTEST.py | tee eff_table.txt
+
+The era is an optional command-line argument (default
+2022preEE), e.g. `... studies/<script>.py 2023preBPix`. It
+selects the input files (ERAS dict near the top of the script),
+the luminosity label (LUMIS, same values as toptag/histmaker.py)
+and the output sub-directory. To add an era, add an ERAS entry.
+Results for 2023preBPix: report_toptag_effSF_2023preBPix.txt.
+
+Histograms: efficiencies always come from fjpt_cat. alpha and the
+data yields come from ERAS[era]["alpha_var"]: `fjpt_bin` for new
+files (same pT edges as fjpt_cat), `fjpt` for these 2022 test
+files, which predate fjpt_bin. The script stops with a message
+if that histogram is empty or its pT edges differ from fjpt_cat.
+
+Both input files must be present in toptag/ — the script
+reads hadmonotop2022_toptagTEST.scaled for the Top-jet jobs and
+hadmonotop2022_toptagTEST2.scaled for the QCD-jet job. To change
+which regions or classes are measured, edit the JOBS dict near
+the top of the script; the efficiency math is shared by every
+entry and lives in one place.
+
+============================================================
+1. INPUT FILES
+============================================================
+TWO input files are used, because no single file has everything
+this report needs. Both are LZ4-compressed cloudpickle, both are
+2022preEE (lumi 7.99 fb^-1), and both have the same axes.
+
+Load either with:
+  import lz4.frame, cloudpickle
+  with open(<file>, "rb") as f:
+      raw = cloudpickle.loads(lz4.frame.decompress(f.read()))
+
+Top-level keys: bkg, sig, data
+Variables: sumw, TvsQCD, probT, probQCD, fjpt_cat, fjpt
+
+Run everything with the plot_env interpreter — the system
+default Python 3.7 cannot read these files (pickle protocol 5):
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python
+
+(a) hadmonotop2022_toptagTEST.scaled  -> Top-jet measurement
+    bkg processes (8):
+      WW, WZ, ZZ, TT, ST,
+      Z (nunu) + Jets, Z (ll) + Jets, W (lnu) + Jets
+    QCD Multijet and G + Jets are NOT in this file.
+
+(b) hadmonotop2022_toptagTEST2.scaled -> QCD-jet measurement
+    bkg processes (10): the 8 above PLUS
+      QCD Multijet, G + Jets
+    G + Jets regions: sr, gcr, wecr, wmcr, tecr, tmcr, zecr
+
+WHY TWO FILES: the QCD-jet measurement is defined on the G+Jets
+sample in the photon CR, and file (a) has no G+Jets sample at
+all. File (b) is the only one that can supply it. The two are
+different MC test samples — DO NOT compare their absolute yields
+against each other. Efficiencies (ratios within one file) are
+the only thing meant to be read across the two.
+
+sig: empty.
+data: filled for fjpt, but NOT for fjpt_cat — truth quark /
+b-flavor matching is undefined for data, so everything in this
+report is MC only.
+
+============================================================
+2. THE fjpt_cat HISTOGRAM
+============================================================
+Axes (5):
+  region   StrCategory  sr, wmcr, wecr, tmcr, tecr, gcr, zecr, zmcr
+  fjpt     Variable     250, 325, 400, 600, 2000 GeV  (4 bins)
+  TvsQCD   Variable     0, 0.33, 1                    (2 bins)
+  n_qinfj  Integer      0..9  (+ under/overflow, both empty)
+  n_binfj  Integer      0..9  (+ under/overflow, both empty)
+
+Storage: boost_histogram Weight -> .values() and .variances()
+are both available, so uncertainties come from the stored
+sum of squared weights, not from sqrt(N).
+
+TvsQCD is the top-tag discriminant, WP = 0.33 (Run 3):
+  bin 0 = untagged ("fail")
+  bin 1 = tagged   ("pass")
+
+n_qinfj = number of top-decay quarks clustered into the AK15 jet
+          (dR <= 1.5 matching)
+n_binfj = b-flavor found via ghost-hadron matching
+
+============================================================
+3. JET CLASS DEFINITIONS (toptag/README.md)
+============================================================
+  n_qinfj | n_binfj = 0 | n_binfj >= 1
+  --------|-------------|-------------
+     0    |   class1    |   class2
+     1    |   class3    |   class4
+     2    |   class5    |   class6
+     3    |   class7 (b-flavor ignored)
+    >= 4  |   class8 (b-flavor ignored)
+
+Aggregated calibration classes:
+  QCD-jet = 1, 3
+  B-jet   = 2, 4
+  Top-jet = 5, 6, 7, 8   <-- measured in this report
+
+PARTITION: the 8 classes are strictly disjoint and complete.
+Verified three ways (see report_fjpt_toptagTEST.txt section 6):
+  1. every (n_qinfj, n_binfj) cell belongs to exactly 1 class
+  2. sum(8 classes) == inclusive total, all processes x regions
+  3. all four flow bins are empty
+
+Consequence used here: Top-jet yields and VARIANCES are plain
+sums over classes 5,6,7,8 — no double counting, no covariance
+term.
+
+============================================================
+4. WHAT WAS COMPUTED
+============================================================
+Top-tag efficiency for Top-class jets, as a function of the
+AK15 jet pT:
+
+              N(top-tagged, Top-jet)
+  eff(pT) = --------------------------------
+            N(top-tagged + untagged, Top-jet)
+
+  numerator   = TvsQCD bin 1, classes 5+6+7+8
+  denominator = TvsQCD bins 0+1, classes 5+6+7+8
+
+ALL background processes are summed into both numerator and
+denominator — the code iterates bkg["fjpt_cat"] directly rather
+than a curated process list, so nothing present is left out.
+
+Code: plot_toptag_eff_toptagTEST.py
+
+--- Jobs --------------------------------------------------
+The script is driven by a JOBS dict: each entry declares its own
+input file, aggregated class, region list, process filter, axis
+labels, y-range and grid spacing. The efficiency math and the
+error formula live in one place and are shared by every job.
+
+  eff_toptag_tmcr       (a) Top-jet  tmcr         all bkg
+  eff_toptag_tecr       (a) Top-jet  tecr         all bkg
+  eff_toptag_combined   (a) Top-jet  tmcr+tecr    all bkg
+  eff_qcdjet_gcr        (b) QCD-jet  gcr          G + Jets only
+  eff_qcdjet_gcr_zoom   (b) QCD-jet  gcr          G + Jets only
+
+The request did not say which ttbar CR, so all three are made:
+  tmcr     : t -> mu nu CR
+  tecr     : t -> e nu CR
+  combined : tmcr + tecr summed
+
+For the QCD-jet job the class is QCD-jet = classes 1,3 and the
+process loop is restricted to G + Jets alone (procs=["G + Jets"]),
+not to all backgrounds. For the Top-jet jobs procs=None, meaning
+every process in the file is summed.
+
+Note that for QCD-jets eff is a MIS-TAG RATE: the fraction of
+genuine QCD jets that pass the top tagger. Lower is better.
+
+--- Uncertainties -----------------------------------------
+Pass and fail are DISJOINT samples, so the error on
+eff = P/(P+F) propagates as
+
+  sigma_eff^2 = [ (1-eff)^2 * var_P + eff^2 * var_F ] / N^2
+
+with var_P, var_F taken from the Weight storage. This is the
+weighted-histogram generalisation of the binomial error; a
+plain sqrt(N) binomial formula would be wrong here because the
+entries are weighted.
+
+--- x-axis ------------------------------------------------
+The fjpt axis ends in a very wide 600-2000 GeV bin. It is drawn
+as an OVERFLOW BIN closing at 1000 GeV: bin CONTENTS are
+untouched, only the drawn right edge moves. The last point
+therefore represents all jets with fjpt >= 600 GeV.
+
+============================================================
+5. RESULTS
+============================================================
+Yields are weighted events (lumi 7.99 fb^-1, 2022preEE).
+
+--- Top-jet efficiency, file (a) --------------------------
+All background processes summed, classes 5,6,7,8
+
+tmcr  (ttbar(mu) CR)
+  pT [GeV]        pass      total     eff
+   250-325        4.67       6.97     0.669 +/- 0.002
+   325-400        5.10       6.64     0.769 +/- 0.002
+   400-600        6.78       8.20     0.826 +/- 0.001
+  >=600 (of)      1.92       2.22     0.867 +/- 0.003
+
+tecr  (ttbar(e) CR)
+  pT [GeV]        pass      total     eff
+   250-325        2.69       4.01     0.671 +/- 0.003
+   325-400        3.22       4.18     0.770 +/- 0.002
+   400-600        4.66       5.64     0.825 +/- 0.002
+  >=600 (of)      1.42       1.65     0.862 +/- 0.003
+
+combined  (tmcr + tecr)
+  pT [GeV]        pass      total     eff
+   250-325        7.36      10.98     0.670 +/- 0.002
+   325-400        8.33      10.82     0.769 +/- 0.001
+   400-600       11.43      13.85     0.826 +/- 0.001
+  >=600 (of)      3.34       3.87     0.865 +/- 0.002
+
+--- QCD-jet mis-tag rate, file (b) ------------------------
+gcr (gamma CR), G + Jets sample only, classes 1,3
+
+  pT [GeV]        pass      total     mis-tag rate
+   250-325     6.00e-05   1.46e-03    0.0410 +/- 0.0008
+   325-400     1.27e-04   3.01e-03    0.0422 +/- 0.0008
+   400-600     2.26e-03   6.63e-02    0.0342 +/- 0.0002
+  >=600 (of)   1.69e-02   5.60e-01    0.0301 +/- 0.0001
+
+Observations:
+- Efficiency rises monotonically with pT, ~0.67 -> ~0.87.
+- The mu and e channels agree to better than 0.01 in every bin.
+- The lowest pT bin sits essentially on the ~67% signal
+  efficiency quoted in toptag/README.md for the Run 3 WP (0.33).
+  (That value was drawn as a red dashed reference line in an
+  earlier version of the plots; it was removed on request, so
+  the comparison lives here in the text only.)
+- The QCD-jet mis-tag rate is ~3-4%, mildly FALLING with pT,
+  i.e. the opposite trend to the Top-jet efficiency. That is the
+  right order of magnitude against the ~99% background rejection
+  quoted in toptag/README.md for this WP.
+
+============================================================
+6. OUTPUT
+============================================================
+plots_effSF/eff/2022preEE/
+  eff_toptag_tmcr.pdf       / .png
+  eff_toptag_tecr.pdf       / .png
+  eff_toptag_combined.pdf   / .png
+  eff_qcdjet_gcr.pdf        / .png
+  eff_qcdjet_gcr_zoom.pdf   / .png
+
+5 plots (10 files, PDF + PNG at 300 dpi).
+
+Plot contents:
+  - black points with x error bars spanning the bin width
+  - y error bars from the formula in section 4
+  - horizontal grid lines, drawn behind the points
+  - x-axis 250 to 1000 GeV
+
+  y-axis per plot:
+    the 4 standard plots : 0 to 1.35, grid every 0.2
+    ..._zoom             : 0 to 0.06, grid every 0.01
+
+TWO PLOTS FOR THE QCD-JET JOB, same numbers, different y-range:
+eff_qcdjet_gcr uses the standard 0-1.35 axis so it is directly
+comparable with the Top-jet plots, but a ~0.03 mis-tag rate is
+unreadable there, so eff_qcdjet_gcr_zoom repeats it on a 0-0.06
+axis. Use the zoom to read values, the standard one to compare.
+  - CMS Private Work label, 7.99 fb^-1, 13.6 TeV
+
+The script also prints the full yield/efficiency table to stdout
+(reproduced in section 5).
+
+============================================================
+7. CAVEATS — READ BEFORE USING THESE NUMBERS
+============================================================
+- THE SMALL ERRORS ARE GENUINE MC STATISTICS. (Corrected
+  2026-09-23: an earlier version called them implausible.) The
+  sums of weights are small (~10 for Top-jet, ~1e-3 for the
+  lowest-pT QCD-jet bin), but the per-event weights are tiny
+  too, so the effective MC statistics N_eff = (sum w)^2/sum w^2
+  are large:
+      pT bin                250-325  325-400  400-600  >=600
+      Top-jet, tmcr+tecr     84k      90k      117k     27k
+      mean weight            1.3e-4   1.2e-4   1.2e-4   1.4e-4
+      G+Jets gcr, n_q<=1     67k      73k      1.5M     4.9M
+  The binomial error sqrt(eff(1-eff)/N_eff) reproduces the
+  quoted +/-0.001-0.003. The small sums of weights point to a
+  NORMALIZATION problem (the same one that makes alpha >> 1, see
+  report_alpha_toptagTEST.txt), not a statistics problem, and an
+  efficiency is a ratio, so it is insensitive to that
+  normalization. The errors are STATISTICAL ONLY: no
+  systematics are included.
+
+- THIS IS A 2-QUARK MEASUREMENT, NOT A MERGED-TOP ONE. In this
+  file the Top-jet group is almost entirely class6 (2q, b);
+  classes 7 (3q) and 8 (>3q) are EMPTY. Fully-merged hadronic
+  tops are essentially absent, so "top-tag efficiency" here is
+  really the efficiency on 2-quark jets. Confirm against the
+  full sample before deriving scale factors.
+
+- MC ONLY. fjpt_cat has no data (no truth matching for data), so
+  this is the simulation efficiency eff_Sim — an INPUT to a
+  scale factor, not a scale factor. SF = eff_Data / eff_Sim
+  still needs the data-side measurement.
+
+- All backgrounds are summed for the Top-jet jobs, not just
+  ttbar. In the ttbar CRs TT and ST dominate the Top-jet class,
+  but the denominator does include the other processes. If a
+  ttbar-only efficiency is wanted, restrict the process loop.
+  The QCD-jet job is G+Jets ONLY, by request.
+
+- QCD Multijet and G + Jets are absent from file (a) entirely.
+  This is why the QCD-jet job reads file (b).
+
+- QCD-JET WEIGHTED YIELDS ARE TINY (1.5e-03 in the lowest pT
+  bin, 0.56 in the overflow bin), but as in the first caveat
+  this is normalization, not statistics: N_eff is 67k-4.9M. The
+  statistical errors are sound; the mild pT trend (0.041 ->
+  0.030) is statistically significant in THIS sample. Whether it
+  survives on the full sample is a separate question.
+
+- The Top-jet and QCD-jet numbers come from DIFFERENT test
+  files. Their efficiencies may be compared; their absolute
+  yields may not.
+
+- The overflow bin is drawn with a right edge of 1000 GeV. Do
+  not read its width as a real pT range.
+
+- Small test file: absolute yields are not meaningful. The
+  normalization caveat in report_fjpt_toptagTEST.txt section 4
+  applies here too.
+
+============================================================
+8. RELATED FILES
+============================================================
+
+WHERE THINGS LIVE (all paths relative to /Users/hongjieun/working/toptag):
+  studies/       the plot_*.py scripts and the .ipynb
+  reports/       this report and its siblings
+  ./             the .scaled input files
+  plots_effSF/   every alpha / eff_MC / eff_Data / SF plot, as
+                 plots_effSF/{alpha,eff,effdata}/<YEAR>/
+Bare filenames below are in those directories respectively.
+EXCEPTION: the fjpt / fjpt_cat study scripts (not part of the
+SF chain) still read their inputs from, and write their
+plots_2022_*/ directories into, /Users/hongjieun/working.
+
+This report (both measurements, one script, JOBS dict):
+  plot_toptag_eff_toptagTEST.py
+  plots_effSF/eff/2022preEE/
+
+Same input file, other fjpt_cat work (report_fjpt_toptagTEST.txt):
+  plot_class_counts_toptagTEST.py        event counts per class
+    plots_2022_toptagTEST_0921_fjptcat/
+  plot_fjpt_agg_toptagTEST.py            fjpt per aggregated class
+    plots_2022_toptagTEST_0921_fjptcat_agg/
+  plot_fjpt_class_toptagTEST.py          fjpt per individual class
+    plots_2022_toptagTEST_class1..8/
+
+Same input file, fjpt data/MC comparison (report_fjpt_toptagTEST.txt):
+  plot_fjpt_toptagTEST.py / .ipynb
+    plots_2022_toptagTEST_0917_fjpt/
+
+Reference:
+  toptag/README.md          class definitions, WP, SF procedure
+  docs/cms_plot_style.md    plot style guide

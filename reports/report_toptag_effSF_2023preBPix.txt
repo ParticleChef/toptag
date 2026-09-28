@@ -1,0 +1,345 @@
+Top-Tag Efficiency and Scale Factor — 2023preBPix
+hadmonotop2023_toptagTEST.scaled
+Report date: 2026-09-23
+
+*** SCRIPT CHANGE AFTER THIS REPORT (2026-09-23) ***
+For 2023preBPix the scripts now read alpha and the data yields
+from `fjpt_bin` (efficiencies still from fjpt_cat). The fjpt /2
+correction and the shared-edge rebinning of section 2 have been
+REMOVED. On the CURRENT file, where fjpt_bin is empty, the alpha
+and eff_Data scripts stop with:
+  'fjpt_bin' is missing or empty in this 2023preBPix file
+eff_MC still runs. The numbers and plots below were produced
+BEFORE the change and stay valid for this file. Re-run all three
+scripts once the updated .scaled file (fjpt_bin filled) is in
+toptag/, under the same name. The data side will then have 4 pT
+bins.
+The fjpt_bin path was tested on a synthetic copy of this file
+(MC fjpt_bin from fjpt_cat, fake data = 3 x MC). It gave 4 bins,
+alpha = 3, and exact closure: SF = 1.0000 in every bin for the
+Top-jet raw subtraction.
+
+All three steps of the SF chain on one file: alpha (step 0),
+eff_MC (step 1), eff_Data and SF (step 2). The method, formulas
+and error propagation are those of the 2022preEE reports:
+  report_alpha_toptagTEST.txt
+  report_toptag_eff_toptagTEST.txt
+  report_toptag_eff_data_toptagTEST.txt
+This report records only what is DIFFERENT for 2023 and the
+results.
+
+HEADLINE
+- eff_MC works in all 4 pT bins: Top-jet 0.66 -> 0.83, QCD-jet
+  mis-tag 0.029 -> 0.019.
+- The data side (alpha, eff_Data, SF) can only be measured in
+  ONE inclusive bin, 250-2000 GeV, because of how the file's data
+  histogram is binned (section 2b).
+- QCD-jet SF (inclusive) = 2.70 +- 0.22, within 1 sigma of the
+  upper end of the AN's Run 2 ballpark (2-2.5). The 2022 test
+  file gave 1.0-1.3.
+- Top-jet eff_Data is unphysical again (20.8 raw, -0.10
+  corrected). Root cause: TT is only 1.5% of the "ttbar CR" MC
+  (section 5).
+
+============================================================
+HOW TO RUN
+============================================================
+From /Users/hongjieun/working/toptag, with the plot_env
+interpreter (system Python 3.7 cannot read .scaled files):
+
+  PY=/Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python
+  $PY studies/plot_alpha_toptagTEST.py           2023preBPix
+  $PY studies/plot_toptag_eff_toptagTEST.py      2023preBPix
+  $PY studies/plot_toptag_eff_data_toptagTEST.py 2023preBPix
+
+The era argument selects the input file, the lumi label (17.96
+fb^-1) and the output directory. Without an argument the scripts
+run 2022preEE. The per-era input files live in the ERAS dict near
+the top of each script. The input file must be in toptag/.
+
+The three scripts are independent and can run in any order;
+eff_Data recomputes alpha and eff_MC internally.
+
+============================================================
+1. INPUT FILE
+============================================================
+hadmonotop2023_toptagTEST.scaled, LZ4 cloudpickle, 2023preBPix.
+
+ONE file serves both measurements. It has all 10 bkg processes,
+including G + Jets and QCD Multijet, so there is no second file
+as in 2022 (TEST = TEST2 in the ERAS dict). sig is empty.
+
+Histograms used:
+  fjpt      region x fjpt(Regular 38, 250-2000) x TvsQCD   data+bkg
+  fjpt_cat  region x fjpt(250,325,400,600,2000) x TvsQCD
+            x n_qinfj x n_binfj                            bkg only
+TvsQCD pass/fail at WP 0.33, the same as 2022
+(histmaker.py TVSQCD_WP["2023pre"] = 0.33).
+
+============================================================
+2. THREE PROBLEMS WITH THIS FILE, AND HOW EACH IS HANDLED
+============================================================
+(a) fjpt IS FILLED TWICE PER EVENT.
+    For every process in tmcr, fjpt / (class-summed fjpt_cat)
+    = 2.0000 for the values AND for the variances. Every data
+    bin is even. Other histograms agree with fjpt_cat, not with
+    fjpt: tmcr data = 5014 in fjeta, TvsQCD and probT, against
+    10028 in fjpt.
+    A double fill (same weight, twice) doubles both the sum of
+    weights and the sum of squared weights. The fix is therefore
+    to divide values AND variances by 2, which the scripts do on
+    read (ERAS["2023preBPix"]["fjpt_fills"] = 2).
+    toptag/histmaker.py does not fill fjpt at all, so the double
+    fill comes from the main hadmonotop processor that made this
+    file. Fix it there.
+    (Superseded: the scripts now use fjpt_bin. They keep the
+    check, and warn if fjpt_bin MC and the class-summed fjpt_cat
+    MC disagree by more than 1e-6, so a double fill in fjpt_bin
+    would show up.)
+
+(b) DATA IS NOT AVAILABLE IN THE SF pT BINNING.
+    Data exists only in fjpt, whose 38 regular bins are
+    46.05 GeV wide (250, 296.05, 342.1, ...). They do not line
+    up with the fjpt_cat edges 325, 400 or 600 GeV. The only
+    shared edges are 250 and 2000 GeV.
+    fjpt_bin has the right edges (250/325/400/600/2000), but
+    its region axis is EMPTY for every process and for data.
+    fjpt_cat has no data (truth matching is undefined for
+    data), as in 2022.
+    HANDLING: every data-side yield is merged onto the edges
+    shared by fjpt and fjpt_cat. For 2022 these are all 5 edges
+    (nothing changes); for 2023 there is one bin, 250-2000 GeV.
+    alpha, eff_Data and SF are therefore INCLUSIVE in pT for
+    2023. eff_MC needs only fjpt_cat and keeps its 4 bins.
+    To get pT-binned SFs, reprocess with fjpt_bin filled, or
+    with fjpt on the 250/325/400/600/2000 edges.
+
+(c) THE "ttbar CR" CONTAINS ALMOST NO ttbar. See section 5.
+
+============================================================
+3. RESULTS
+============================================================
+Yields are weighted MC events or data counts, lumi 17.96 fb^-1.
+The fjpt yields below already include the /2 correction.
+
+--- Step 0: alpha = N(Data)/N(MC), pre-tag, 250-2000 GeV ------
+  region        N(Data)   N(MC)     alpha
+  gcr            24772    5490.9    4.51 +- 0.11
+  tmcr            5014     758.5    6.61 +- 0.23
+  tecr            2928     406.4    7.20 +- 0.15
+  tmcr+tecr       7942    1165.0    6.82 +- 0.17
+
+alpha is O(5-7), far closer to 1 than 2022 (7 to 5e7). It is
+still not O(1), so MC normalization is still off by a large
+factor. The mu and e channels differ by 9% (2.1 sigma).
+
+--- Step 1: eff_MC, 4 pT bins (fjpt_cat) ----------------------
+Top-jet (classes 5-8), all bkg, tmcr+tecr
+  pT [GeV]      pass      total     eff
+   250-325      0.366     0.553     0.661 +- 0.016
+   325-400      1.095     1.455     0.753 +- 0.008
+   400-600      5.033     6.269     0.803 +- 0.003
+  >=600 (of)    2.031     2.452     0.828 +- 0.005
+  tmcr alone: 0.683 0.744 0.803 0.820
+  tecr alone: 0.632 0.765 0.803 0.840
+
+QCD-jet (classes 1,3), G + Jets only, gcr (mis-tag rate)
+  pT [GeV]      pass      total     eff
+   250-325      0.735     25.8      0.0285 +- 0.0007
+   325-400      2.154     90.3      0.0238 +- 0.0003
+   400-600     38.03    1921.2      0.0198 +- 0.0001
+  >=600 (of)   46.37    2434.2      0.0190 +- 0.0001
+
+Against 2022preEE: Top-jet eff is within 0.01-0.04 in every
+bin, with the same rising trend. The QCD-jet mis-tag rate is
+about 2/3 of 2022 (0.019-0.029 vs 0.030-0.042) and falls with
+pT in both years. Errors are MC statistics only.
+
+--- Step 2: eff_Data and SF, ONE bin 250-2000 GeV -------------
+QCD-jet, gcr, B-jet subtracted
+  eff_MC   0.0195
+  eff_Data 0.0528 +- 0.0044   (stat 0.0016, syst 0.0041)
+  SF       2.70   +- 0.22
+
+Top-jet, tmcr+tecr (per channel in brackets)
+                eff_MC  eff_Data             SF
+  raw           0.795   20.8 +- 79.6         26 +- 100
+                        [mu 23.7, e 16.9]
+  SF-corrected  0.795   -0.095 +- 0.021      -0.12 +- 0.03
+                        [mu -0.094, e -0.096]
+
+--- Reading the QCD-jet SF ------------------------------------
+- 2.70 +- 0.22 sits just above the AN Run 2 range (~2-2.5 quoted
+  in toptag/README.md), 0.9 sigma from its upper end. The 2022
+  test file gave 1.0-1.3.
+- Its error is systematics-dominated (the B-jet subtraction:
+  SF_B = 1 +- 0.5 and 50% GJ B-jet normalization), as in 2022.
+- The B-jet subtraction is small: B-jet is 2.6% of the GJ gcr
+  MC. Non-GJ processes are 16.4% of the gcr MC, almost all QCD
+  Multijet (15.3%), comparable to 2022 (5-17% per bin). alpha
+  is taken over all processes, but the class terms use GJ only,
+  so this 16% enters the denominator uncorrected (see 2022
+  report section 2). Tagged fraction in gcr: data 0.0577,
+  MC 0.0266.
+- It is INCLUSIVE and dominated by the two high-pT bins (400-600
+  and >=600 GeV hold 97% of the GJ QCD-jet MC). It is not a
+  per-bin SF.
+
+============================================================
+4. PLOTS
+============================================================
+toptag/plots_effSF/
+  alpha/2023preBPix/     alpha_gcr, alpha_ttcr_combined,
+                         alpha_ttcr_split  (each + _zoom)
+  eff/2023preBPix/       eff_toptag_{tmcr,tecr,combined},
+                         eff_qcdjet_gcr, eff_qcdjet_gcr_zoom
+  effdata/2023preBPix/   effdata_qcdjet_gcr,
+                         effdata_topjet_{ttcr_combined,tmcr,tecr}
+                         (Top-jet each + _zoom)
+PDF + PNG (300 dpi), 18 plots, 36 files.
+
+alpha and effdata plots show ONE point spanning the whole x-axis
+(250-2000 GeV, drawn to 1000 GeV as in the 2022 plots). The
+Data and MC points are offset horizontally for readability;
+the offset has no meaning in pT.
+
+Change made for this era: the QCD-jet SF panel range is now 0-4,
+up from 0-2.4, so that SF = 2.7 is on the axis. The 2022preEE
+plot was regenerated with the same range.
+
+============================================================
+5. WHY THE TOP-JET MEASUREMENT FAILS — AND A CORRECTION TO
+   THE 2022 DIAGNOSIS
+============================================================
+Process makeup of the tmcr+tecr MC (fjpt_cat, pre-tag):
+                   2022preEE   2023preBPix
+  W (lnu) + Jets     44.8%        60.0%
+  QCD Multijet        (absent)    20.3%
+  Z (ll) + Jets      13.1%         6.9%
+  ST                 16.3%         4.3%
+  WW                 11.3%         5.2%
+  TT                 10.6%         1.5%
+
+Truth-class makeup of the same MC, 2023:
+  QCD-jet 90.6%, B-jet 8.4%, Top-jet 0.9% (0.4-2.3% per bin);
+  classes 7 and 8 (>= 3 quarks) are empty (8e-4 events).
+
+Within the TT sample alone, Top-jet is 35% of jets (31% in
+2022). That is a reasonable number, so the classifier does its
+job on TT jets. The Top-jet class is tiny because TT is tiny.
+
+This CORRECTS report_toptag_eff_data_toptagTEST.txt section 8,
+which pointed at the truth matching (classifiers.py). On both
+test files the first suspect is the process mix of the ttbar CRs
+— TT normalization in the test sample, or the CR selection — not
+the classifier.
+
+Mechanism, as in 2022 section 5:
+- The data tag far more often than the MC: tagged fraction in
+  tmcr+tecr is 0.248 in data and 0.064 in MC.
+- In the raw subtraction the denominator is alpha*N(MC,Top) =
+  6.82 * 10.7 = 73 events out of 7942. The whole data excess
+  of tagged events lands on this 0.9% residual, giving 20.8.
+- In the corrected subtraction the QCD-jet term (90.6% of MC) is
+  scaled by SF_QCD = 2.70, which removes more tagged events
+  than data has. The numerator goes negative, giving -0.10.
+
+Not a code bug: the same code gives a sensible QCD-jet result
+from the same file, where the target class is 97% of the region.
+
+============================================================
+6. CAVEATS
+============================================================
+- DO NOT USE THE TOP-JET eff_Data / SF.
+- QCD-jet SF is ONE inclusive bin. It cannot go into correctionlib
+  as a pT-binned SF.
+- The /2 correction for fjpt is an inference from the file (exact
+  2.0000 ratio in values and variances, all-even data), not a
+  confirmed fix in the producer. Confirm it in the processor.
+- alpha ~ 5-7: MC normalization is still off by a large factor.
+- Errors: stat + SF_B + BJetNorm (+ QCDMistag for Top-jet
+  corrected) only. No JES, PS, TopPt or scale/PDF systematics,
+  as in 2022. Inputs are treated as uncorrelated.
+- Test file: do not compare absolute yields with the 2022 files.
+
+============================================================
+7. WHAT TO DO NEXT
+============================================================
+1. In the hadmonotop processor: stop the double fill of fjpt,
+   and fill fjpt_bin (or bin fjpt on 250/325/400/600/2000).
+   Then set fjpt_fills = 1 for this era. The data side becomes
+   4 pT bins with no script change.
+2. Check the TT normalization and the ttbar CR selection. TT
+   should dominate a ttbar CR; here it is 1.5%.
+3. Only then revisit the Top-jet SF and the raw vs SF-corrected
+   question.
+
+============================================================
+8. RELATED FILES
+============================================================
+(paths relative to /Users/hongjieun/working/toptag)
+  studies/plot_alpha_toptagTEST.py
+  studies/plot_toptag_eff_toptagTEST.py
+  studies/plot_toptag_eff_data_toptagTEST.py
+  reports/report_alpha_toptagTEST.txt           (2022preEE)
+  reports/report_toptag_eff_toptagTEST.txt      (2022preEE)
+  reports/report_toptag_eff_data_toptagTEST.txt (2022preEE)
+  hadmonotop2023_toptagTEST.scaled
+
+============================================================
+APPENDIX A. fjpt YIELDS PER REGION (added 2026-09-23)
+============================================================
+Pre-tag, 250-2000 GeV, corrected for the double fill (/2).
+Weighted MC events; data counts from the region's dataset.
+
+process           sr     wmcr    wecr    tmcr    tecr    zmcr    zecr     gcr
+WW             129.5    282.0   198.8    35.4    25.6     1.1     0.7     8.0
+WZ             212.1     77.8    57.3    11.4     8.7    16.4    11.5     3.6
+ZZ             152.7      2.8     1.2     0.3     0.2    13.1     9.7     0.7
+QCD Multijet   205.8    857.1    12.4   231.5     4.8     0.0      -    842.4
+TT               2.5      8.2     6.0     9.9     7.3     0.1     0.0     0.0
+ST               7.6     29.3    22.1    28.5    21.7     0.2     0.2     0.3
+Z (vv)+Jets  15510.8      0.4     0.6     0.1     0.1      -       -      1.3
+Z (ll)+Jets     89.2    283.1   221.7    45.4    35.1  2101.7  1433.5     8.3
+W (lv)+Jets   1565.7   3522.1  2683.5   396.1   303.0     0.0     0.1    37.1
+G + Jets        57.3      0.1     0.5     0.0     0.1      -     0.0   4589.2
+------------------------------------------------------------------------------
+Total MC     17933.0   5062.8  3204.0   758.5   406.4  2132.5  1455.6  5490.9
+ MC stat err   115.3    122.7     5.6    24.7     4.2     1.7     1.4   123.9
+Data           35644    19336   11527    5014    2928    1876     911   24772
+Data/MC         1.99     3.82    3.60    6.61    7.20    0.88    0.63    4.51
+Tag frac MC    0.039    0.042   0.039   0.063   0.066   0.029   0.029   0.027
+Tag frac Data  0.068    0.117   0.119   0.247   0.249   0.069   0.069   0.058
+
+Checks:
+- The double fill is in EVERY region: fjpt/fjpt_cat = 2.0000 (MC)
+  in all 8, and no data bin is odd anywhere.
+- Overflow above 2000 GeV is small (MC 0.4-8.5, data 0-8 per
+  region). fjpt_cat excludes it too.
+- MC stat errors in wmcr, tmcr and gcr come almost entirely from
+  QCD Multijet (large per-event weights).
+
+Reading:
+- Data/MC depends strongly on the region: 0.6-0.9 in the Z CRs,
+  about 2 in sr, 3.6-3.8 in the W CRs, 4.5 in gcr and 6.6-7.2
+  in the top CRs. A single global normalization would move every
+  region together, so this is process-specific mis-normalization.
+- TT is 1.3% (tmcr) and 1.8% (tecr) of the top CRs, and has about
+  the same yield in the W CRs (8.2 / 6.0) as in the top CRs
+  (9.9 / 7.3). The top CRs are W+jets-dominated (52-75%), and in
+  tmcr QCD Multijet adds another 30%.
+- The data excess (data - MC) in tmcr/tecr tags at 0.28. TT jets
+  in MC tag at 0.44-0.45 there, and W+jets-like jets at ~0.04.
+  An excess that were all ttbar would tag at ~0.44, so the
+  excess is roughly 60% ttbar-like and 40% W-like. In the W CRs
+  the excess tags at 0.14-0.15, about 15% ttbar-like.
+  Closing the tmcr gap with TT alone would need TT x433 (x347 in
+  tecr), so no single TT factor explains all regions. Both TT and
+  W+jets look under-normalized, TT by far the most.
+- sr carries data (35644 events). If the analysis is meant to be
+  blinded, check that before plotting sr.
+
+Consequence for the SF chain: the ttbar CRs cannot serve as a
+Top-jet calibration region on this file. Check the TT (and
+W+jets) cross sections / sum-of-weights normalization in the
+processor before anything else.

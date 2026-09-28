@@ -1,0 +1,440 @@
+AK15 Leading Jet pT (fjpt) — Data/MC Comparison Report
+hadmonotop2022_toptagTEST.scaled
+Report date: 2026-09-17
+Last updated: 2026-09-21
+  section 6-8  — fjpt_cat class event counts
+  section 9-11 — fjpt spectra per aggregated class
+
+============================================================
+HOW TO RUN
+============================================================
+All four scripts live in toptag/studies/ and are standalone:
+no arguments, no notebook, no manual function calls. They can be
+run from ANY directory — each resolves its own paths against the
+analysis working directory (/Users/hongjieun/working), where the
+.scaled inputs live and where the plot directories are written.
+
+Use the plot_env interpreter — the system default Python 3.7
+CANNOT read these .scaled files (pickle protocol 5):
+
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      toptag/studies/plot_fjpt_toptagTEST.py
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      toptag/studies/plot_class_counts_toptagTEST.py
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      toptag/studies/plot_fjpt_agg_toptagTEST.py
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      toptag/studies/plot_fjpt_class_toptagTEST.py
+
+or activate the environment first:
+
+  conda activate plot_env
+  python toptag/studies/plot_fjpt_toptagTEST.py
+  python toptag/studies/plot_class_counts_toptagTEST.py
+  python toptag/studies/plot_fjpt_agg_toptagTEST.py
+  python toptag/studies/plot_fjpt_class_toptagTEST.py
+
+Produces:
+  toptag/studies/plot_fjpt_toptagTEST.py
+    -> plots_2022_toptagTEST2_0921_fjpt/
+  toptag/studies/plot_class_counts_toptagTEST.py
+    -> plots_2022_toptagTEST_0921_fjptcat/
+  toptag/studies/plot_fjpt_agg_toptagTEST.py
+    -> plots_2022_toptagTEST_0921_fjptcat_agg/
+  toptag/studies/plot_fjpt_class_toptagTEST.py
+    -> plots_2022_toptagTEST_0917/
+
+Running a script recreates its output directory and
+OVERWRITES the plots in place, and prints its table to
+stdout. To keep the printed table:
+
+  /Users/hongjieun/opt/anaconda3/envs/plot_env/bin/python \
+      toptag/studies/plot_fjpt_toptagTEST.py | tee fjpt_table.txt
+
+Input file(s) and output directory are set in the CONFIG block
+at the top of each script; nothing else needs editing.
+
+The four scripts are independent of each other and can be run in
+any order, or individually.
+
+NOTE — the FILE MAP in section 5 lists the output
+directories as they were when each section was written.
+Two have since moved, because the scripts were re-pointed
+after the fact:
+
+  plot_fjpt_toptagTEST.py now reads
+    hadmonotop2022_toptagTEST2.scaled  (was: ...TEST.scaled)
+  and writes
+    plots_2022_toptagTEST2_0921_fjpt/  (was: ..._0917_fjpt/)
+
+The older directories still hold the earlier runs' output and
+are not overwritten. Check INPUT_FILE and OUTDIR_BASE at the top
+of a script for what it will actually do today.
+
+plot_fjpt_toptagTEST.ipynb holds the same logic as
+plot_fjpt_toptagTEST.py for interactive use; the .py is the one
+to run for the full loop.
+
+============================================================
+1. INPUT FILE
+============================================================
+File: hadmonotop2022_toptagTEST.scaled (LZ4-compressed cloudpickle)
+Top-level keys: bkg, sig, data
+Variables checked: fjpt, fjpt_cat
+
+As of 2026-09-17:
+
+bkg[fjpt] processes:
+  WW, WZ, ZZ, TT, ST,
+  Z (nunu) + Jets, Z (ll) + Jets, W (lnu) + Jets
+  (QCD Multijet and G + Jets are still missing)
+
+sig[fjpt] processes: (none)
+
+data[fjpt] processes:
+  MET    -> filled for regions: sr, wmcr, tmcr, zmcr
+  EGamma -> filled for regions: wecr, tecr, gcr, zecr
+  (matches the standard REGION_DATASET mapping)
+
+fjpt_cat (region, fjpt, TvsQCD, n_qinfj, n_binfj):
+  bkg-only, used to derive top-tag efficiencies/scale factors
+  (see toptag/README.md). sig and data are empty for fjpt_cat
+  by design (no truth quark/b-flavor info for data) — this
+  variable was intentionally NOT used for the plots in sections
+  2-4 and was left untouched, along with its existing outputs:
+    plot_fjpt_class_toptagTEST.py
+    plots_2022_toptagTEST_class1..8/
+    plots_2022_toptagTEST_0916/class1..8/
+    plots_2022_toptagTEST_0917/class1..8/
+  SUPERSEDED 2026-09-21: fjpt_cat is now used directly for the
+  class event-count plots described in section 6. The outputs
+  listed just above are still untouched by that work.
+
+============================================================
+2. WHAT WAS PLOTTED
+============================================================
+Variable: fjpt (AK15 leading jet pT), axes = region, fjpt, TvsQCD
+Split by top-tag working point (TvsQCD > 0.33):
+  toptag_fail : TvsQCD bin 0
+  toptag_pass : TvsQCD bin 1
+
+For each of the 8 regions (sr, wmcr, tmcr, zmcr, wecr, tecr, gcr, zecr):
+  - Background stack (only processes present in the file; VV = WW+WZ+ZZ)
+  - Sqrt(N) background uncertainty band
+  - Data points (MET or EGamma, per REGION_DATASET)
+  - Data/MC ratio panel (0.5-1.5 range)
+  - CMS Private Work label, lumi = 7.99 fb^-1 (2022preEE), sqrt(s) = 13.6 TeV
+
+Code:
+  plot_fjpt_toptagTEST.py     (standalone script)
+  plot_fjpt_toptagTEST.ipynb  (notebook, same logic, one example plot
+                                rendered inline; full 16-plot loop runs
+                                and saves without inline display)
+
+Both are written so that adding more backgrounds (QCD Multijet, G+Jets)
+or real data later requires no code changes — get_bkg_arrays only draws
+processes actually present in bkg_data[VAR], and get_data_arrays returns
+None gracefully if a region/dataset isn't filled yet.
+
+============================================================
+3. OUTPUT
+============================================================
+plots_2022_toptagTEST_0917_fjpt/
+  toptag_fail/
+    stack_sr_fjpt.pdf   / .png
+    stack_wmcr_fjpt.pdf / .png
+    stack_tmcr_fjpt.pdf / .png
+    stack_zmcr_fjpt.pdf / .png
+    stack_wecr_fjpt.pdf / .png
+    stack_tecr_fjpt.pdf / .png
+    stack_gcr_fjpt.pdf  / .png
+    stack_zecr_fjpt.pdf / .png
+  toptag_pass/
+    (same 8 regions)
+
+Total: 16 plots (32 files, PDF + PNG each).
+
+============================================================
+4. OBSERVATIONS / CAVEATS
+============================================================
+- Data/MC normalization is far off in every region (e.g. SR/pass: data
+  ~3x10^4 events/bin vs MC ~3x10^2 events/bin). This is EXPECTED, not a
+  plotting bug: hadmonotop2022_toptagTEST.scaled is a small private MC
+  test sample (limited stats/datasets), while MET/EGamma data already
+  reflect the full dataset. The ratio panel correctly shows no point
+  when the ratio falls outside the plotted 0.5-1.5 window.
+- QCD Multijet and G + Jets backgrounds are still absent from the file;
+  BKG_ORDER lists them for forward compatibility but they don't appear
+  in the current stacks.
+- sig is empty; no signal overlay is drawn.
+- Do not treat these plots as a validated data/MC comparison until the
+  MC is normalized/scaled to match the full dataset luminosity/stats.
+
+============================================================
+5. FILE MAP
+============================================================
+
+WHERE THINGS LIVE (all paths relative to /Users/hongjieun/working):
+  toptag/studies/   the plot_*.py scripts and the .ipynb
+  toptag/reports/   this report and its siblings
+  ./                the .scaled input files and every plots_*/
+                    output directory
+Bare filenames below are in those directories respectively.
+
+Uses fjpt (this report):
+  plot_fjpt_toptagTEST.py
+  plot_fjpt_toptagTEST.ipynb
+  plots_2022_toptagTEST_0917_fjpt/{toptag_fail,toptag_pass}/
+
+Uses fjpt_cat — fjpt distributions per class (untouched by the
+2026-09-21 work, separate purpose — SF derivation classes):
+  plot_fjpt_class_toptagTEST.py
+  plots_2022_toptagTEST_class1..8/
+  plots_2022_toptagTEST_0916/class1..8/
+  plots_2022_toptagTEST_0917/class1..8/
+
+Uses fjpt_cat — event counts per class (section 6-8, 2026-09-21):
+  plot_class_counts_toptagTEST.py
+  plots_2022_toptagTEST_0921_fjptcat/{inclusive,toptag_fail,toptag_pass}/
+
+Uses fjpt_cat — fjpt spectra per aggregated class (section 9-11,
+2026-09-21):
+  plot_fjpt_agg_toptagTEST.py
+  plots_2022_toptagTEST_0921_fjptcat_agg/
+    {inclusive,toptag_fail,toptag_pass}/{qcdjet,bjet,topjet}/
+
+============================================================
+6. UPDATE 2026-09-21 — fjpt_cat CLASS EVENT COUNTS
+============================================================
+New, self-contained work. Nothing in sections 2-4 is changed or
+re-run; those fjpt data/MC plots and their outputs still stand.
+
+Question asked: how many background events fall in each AK15
+jet class?
+
+Variable: fjpt_cat (region, fjpt, TvsQCD, n_qinfj, n_binfj)
+Code:     plot_class_counts_toptagTEST.py
+
+--- What is plotted ---------------------------------------
+  x-axis : jet category (see binnings below)
+  y-axis : number of events, summed over the fjpt axis
+  Backgrounds only, stacked in the per-region order from
+  docs/cms_plot_style.md, standard color scheme, VV = WW+WZ+ZZ.
+  No data points and no ratio panel: fjpt_cat is bkg-only by
+  construction (truth quark/b-flavor matching is undefined for
+  data), so there is nothing to compare against.
+
+  Linear y-axis, auto-scaled to 1.6 x (tallest stack + its
+  uncertainty) to leave room for the legend. Bars touch (bin
+  width 1.0, no gap). Hatched band = sqrt(sum of per-process
+  variances), taken from the histograms' Weight storage rather
+  than assuming sqrt(N).
+
+  Calibration groups are shaded behind the bars:
+    white       = QCD-jet
+    light gray  = B-jet
+    darker gray = Top-jet
+
+--- Two binnings ------------------------------------------
+  class : the 8 jet classes      -> classcount_{region}
+  group : 3 aggregated classes   -> aggcount_{region}
+
+  Both are produced by the same make_plot() driven by a BINNINGS
+  dict (tick labels, per-bin group, x-label, tick font size), so
+  the two cannot drift apart in style.
+
+--- Three top-tag modes -----------------------------------
+  inclusive   : summed over the TvsQCD axis
+  toptag_fail : TvsQCD bin 0 (< 0.33)
+  toptag_pass : TvsQCD bin 1 (> 0.33)
+
+--- Class definitions (toptag/README.md) ------------------
+Built from the n_qinfj / n_binfj axes:
+
+  n_qinfj | n_binfj = 0 | n_binfj >= 1
+  --------|-------------|-------------
+     0    |   class1    |   class2
+     1    |   class3    |   class4
+     2    |   class5    |   class6
+     3    |   class7 (b-flavor ignored)
+    >= 4  |   class8 (b-flavor ignored)
+
+Aggregated: QCD-jet = 1,3 | B-jet = 2,4 | Top-jet = 5,6,7,8
+
+--- Overlap check (asked 2026-09-21) ----------------------
+The 8 classes are a STRICT PARTITION — no overlap, no gaps.
+Verified three independent ways:
+  1. Enumerating every (n_qinfj, n_binfj) cell of the 10x10
+     grid: each cell belongs to exactly 1 class. 0 cells
+     covered twice, 0 cells uncovered.
+  2. Closure: for all 8 processes x all regions,
+     sum(8 classes) == inclusive total exactly (0 mismatches).
+  3. Flow bins: both integer axes have under/overflow enabled
+     but all four are empty, so nothing escapes the grid.
+     Class 8 uses slice(4, None, sum) with the endpoint omitted,
+     which includes overflow anyway.
+
+Because the classes are disjoint, the aggregated groups are a
+plain sum of values AND variances — no double counting and no
+covariance term. Spot-checked on tmcr/pass:
+  QCD-jet 23.7 = class1 23.3 + class3  0.4
+  B-jet   40.8 = class2 34.2 + class4  6.6
+  Top-jet 18.7 = class5  2.3 + class6 16.4  (classes 7-8 empty)
+
+============================================================
+7. OUTPUT (2026-09-21)
+============================================================
+plots_2022_toptagTEST_0921_fjptcat/
+  inclusive/
+    classcount_{sr,wmcr,tmcr,zmcr,wecr,tecr,gcr,zecr}.pdf / .png
+    aggcount_{sr,wmcr,tmcr,zmcr,wecr,tecr,gcr,zecr}.pdf   / .png
+  toptag_fail/
+    (same 16)
+  toptag_pass/
+    (same 16)
+
+Total: 48 plots (96 files, PDF + PNG at 300 dpi).
+8 regions x 2 binnings x 3 top-tag modes.
+
+============================================================
+8. OBSERVATIONS / CAVEATS (2026-09-21)
+============================================================
+- has_region() guard added: not every process in this file has
+  a region axis containing every region (zmcr was missing for at
+  least one process, which crashed the slice). Those processes
+  now contribute zero instead of aborting the plot. Worth
+  checking why they are missing when the full sample is ready.
+- On a LINEAR y-axis the SR is completely dominated by class1
+  (~1.4x10^4 events vs ~2 events in class3), so classes 3-8 sit
+  flat against zero there. The control regions are far better
+  balanced. If the small classes need to be visible in the SR,
+  switch back to log or plot per-class fractions.
+- PHYSICS NOTE: in toptag_pass of the tt(mu) CR, B-jet (41
+  events) exceeds Top-jet (19), and the Top-jet bar is almost
+  entirely class6 (2q, b) with classes 7-8 EMPTY. Fully-merged
+  3-quark tops are essentially absent in this sample, so a
+  Top-jet efficiency extracted here is really a 2-quark
+  measurement. Likely a property of this small test file — 
+  confirm against the full sample BEFORE deriving scale factors.
+- QCD Multijet and G + Jets are still absent from this file, so
+  they never appear in the stacks. BKG_ORDER lists them for
+  forward compatibility. Pointing INPUT_FILE at
+  hadmonotop2022_toptagTEST2.scaled picks them up with no other
+  code change.
+- These are MC yield plots, not a validation. The normalization
+  caveat in section 4 applies here too.
+
+============================================================
+9. UPDATE 2026-09-21 (b) — fjpt SPECTRA PER AGGREGATED CLASS
+============================================================
+Follow-up to sections 6-8. Those plot the NUMBER OF EVENTS per
+jet category (category on the x-axis). This section plots the
+AK15 jet pT DISTRIBUTION for each aggregated class (pT on the
+x-axis). Same input file, same variable, different x-axis.
+Sections 6-8 and their outputs are unchanged.
+
+Variable: fjpt_cat (region, fjpt, TvsQCD, n_qinfj, n_binfj)
+Code:     plot_fjpt_agg_toptagTEST.py
+
+--- What is plotted ---------------------------------------
+  x-axis : fjpt, on the real variable bin edges
+  y-axis : Events / bin
+  One plot per region x top-tag mode x aggregated class.
+  The n_qinfj / n_binfj axes are sliced to the classes in each
+  group and summed; TvsQCD is summed (inclusive) or sliced to
+  bin 0 (fail) / bin 1 (pass).
+
+  Backgrounds only, stacked in the per-region order from
+  docs/cms_plot_style.md, standard color scheme, VV = WW+WZ+ZZ.
+  No data points and no ratio panel — same reason as section 6.
+  Drawn with stairs(fill=True), edgecolor black, linewidth 1.5.
+  Hatched band = sqrt(sum of per-process variances) from the
+  histograms' Weight storage.
+
+  Aggregated classes (README): QCD-jet = 1,3 | B-jet = 2,4 |
+  Top-jet = 5,6,7,8. Because the 8 classes are a strict
+  partition (verified in section 6), values and variances are
+  plain sums over the constituent classes.
+
+--- Overflow bin ------------------------------------------
+The fjpt axis ends in a very wide 600-2000 GeV bin that
+dominates the x-range while holding few events. It is redrawn
+as an OVERFLOW BIN closing at 1000 GeV:
+
+  drawn edges : 250, 325, 400, 600, 1000
+  X_MAX       : 1000.0
+
+Bin CONTENTS are untouched — only the drawn right edge of the
+last bin moves from 2000 to 1000. The last bin therefore holds
+everything with fjpt >= 600 GeV.
+
+(An earlier iteration also drew a dashed line at 600 and added
+"(last bin: overflow)" to the x-label. Both were removed on
+request; the bin edge alone marks the boundary.)
+
+--- Two y-scales ------------------------------------------
+Every plot is produced twice, linear and log:
+
+  lin : y from 0 to 1.6 x (tallest stack + its uncertainty)
+        -> stack_{region}_fjpt.pdf / .png
+  log : decade-rounded limits, decade-only major ticks,
+        unlabeled minor ticks
+        -> stack_{region}_fjpt_log.pdf / .png
+
+The decade-only tick setup is copied from plot_fjpt_toptagTEST.py
+and avoids matplotlib's "6 x 10^0"-style multiplier labels on
+narrow-range log axes, which widen the left margin and push the
+CMS header text into the lumi label.
+
+LOG Y-FLOOR: the lower limit is taken from the smallest nonzero
+STACK BOUNDARY (the cumulative sum), not from the stack total.
+Flooring on the total pushed the smaller processes below the
+axis and they vanished from the plot — e.g. SR / QCD-jet
+originally floored at 10^3 and hid Z(ll)+jets, Single top and
+ttbar, which now show down to 10^1.
+
+--- Verification ------------------------------------------
+Summing the three group spectra reproduces the class-inclusive
+fjpt spectrum exactly for all 24 region x tag-mode combinations
+(0 mismatches). The integrals also match the section 7 aggcount
+bars, e.g. tmcr / toptag_pass:
+  QCD-jet 23.5 | B-jet 40.7 | Top-jet 18.5
+
+============================================================
+10. OUTPUT (2026-09-21 b)
+============================================================
+plots_2022_toptagTEST_0921_fjptcat_agg/
+  inclusive/
+    qcdjet/  stack_{8 regions}_fjpt.pdf/.png
+             stack_{8 regions}_fjpt_log.pdf/.png
+    bjet/    (same)
+    topjet/  (same)
+  toptag_fail/
+    (same 3 class subdirs)
+  toptag_pass/
+    (same 3 class subdirs)
+
+Total: 144 plots (288 files, PDF + PNG at 300 dpi).
+8 regions x 3 top-tag modes x 3 aggregated classes x 2 y-scales.
+
+============================================================
+11. OBSERVATIONS / CAVEATS (2026-09-21 b)
+============================================================
+- The last bin is an overflow bin (fjpt >= 600 GeV) drawn with a
+  right edge of 1000 GeV. Do not read its width as a real pT
+  range, and do not integrate it as if it ended at 1000.
+- "Events / bin" is not divided by bin width, so the shape is
+  partly bin-width driven. If the spectrum SHAPE matters rather
+  than the yields, divide by bin width and relabel "Events / GeV".
+- The same has_region() guard as section 8 applies: processes
+  whose region axis lacks a given region contribute zero rather
+  than aborting the plot.
+- Same physics note as section 8: the Top-jet group is almost
+  entirely class6 (2q, b) with classes 7-8 empty in this file, so
+  a Top-jet pT spectrum here is effectively a 2-quark spectrum.
+  Confirm against the full sample before deriving scale factors.
+- The output directory was deleted and rebuilt from scratch on
+  the final run (an earlier run was killed mid-write and could
+  have left partial files). Nothing else lived in that directory.
+- These are MC yield plots, not a validation. The normalization
+  caveat in section 4 applies here too.
