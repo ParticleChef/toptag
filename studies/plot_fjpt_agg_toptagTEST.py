@@ -29,7 +29,7 @@ os.chdir(WORK_DIR)
 hep.style.use("CMS")
 
 # ─── Load ───────────────────────────────────────────────────────────────────
-INPUT_FILE = "hadmonotop2022_toptagTEST.scaled"
+INPUT_FILE = "toptag/old_results/scaled/hadmonotop2022_toptagTEST.scaled"
 LUMI = 7.99  # 2022preEE, fb^-1
 
 with open(INPUT_FILE, "rb") as f:
@@ -44,7 +44,7 @@ VAR_LABEL = r"AK15 jet $p_{\mathrm{T}}$ [GeV]"
 # while holding few events. It is redrawn as an overflow bin closing at 1000 GeV:
 # bin CONTENTS are untouched, only the drawn right edge changes.
 X_MAX = 1000.0
-OUTDIR_BASE = "plots_2022_toptagTEST_0921_fjptcat_agg"
+OUTDIR_BASE = "toptag/old_results/plots_2022_toptagTEST_0921_fjptcat_agg"
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 REGIONS = ["sr", "wmcr", "tmcr", "zmcr", "wecr", "tecr", "gcr", "zecr"]

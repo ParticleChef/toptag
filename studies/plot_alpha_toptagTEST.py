@@ -10,57 +10,36 @@ and every jet class. It is NOT an inclusive all-event quantity.
 
 Reads the `fjpt_bin` histogram (region x fjpt_bin x TvsQCD), which has data
 filled and the same pT edges as `fjpt_cat`; fjpt_cat itself has no data, since
-truth matching is undefined for data. (2022 test files: `fjpt`, see ERAS.)
+truth matching is undefined for data. (Old 2022 test files: `--alpha-var fjpt`.)
+
+Usage: python studies/plot_alpha_toptagTEST.py -f hadmonotop2023_toptagTEST4 [-e ERA]
 """
 
 import warnings
 warnings.filterwarnings("ignore")
 
 import os
-import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
 import lz4.frame
 import cloudpickle
 
-# ─── Path resolution ────────────────────────────────────────────────────────
-# This script lives in toptag/studies/, but it reads the .scaled files from,
-# and writes its plot directory into, the toptag/ directory one level up.
-# Everything below therefore uses paths relative to that root, so the script
-# behaves identically no matter which directory it is run from.
-WORK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-os.chdir(WORK_DIR)
-
+from effsf_cli import base_parser, setup
 
 hep.style.use("CMS")
 
-# Data-taking era: optional first command-line argument, default 2022preEE.
-# Selects the input files, the luminosity label and the output sub-directory.
-YEAR = sys.argv[1] if len(sys.argv) > 1 else "2022preEE"
-
-# fb^-1, same values as toptag/histmaker.py LUMIS
-LUMIS = {"2022preEE": 7.99, "2022postEE": 26.68,
-         "2023preBPix": 17.96, "2023postBPix": 9.68}
-LUMI = LUMIS[YEAR]
-
-# Input files per era. "top" feeds the ttbar-CR (Top-jet) jobs, "qcd" the
-# gamma-CR (QCD-jet) jobs -- the 2022 "top" file has no G + Jets sample, so
-# 2022 needs a second file. "alpha_var" is the histogram the data-side yields
-# (alpha, N(Data)) are read from: `fjpt_bin`, binned exactly like fjpt_cat.
-# The 2022 test files predate fjpt_bin and use `fjpt`, which has the same
-# edges there. Efficiencies always come from fjpt_cat.
-ERAS = {
-    "2022preEE":   dict(top="hadmonotop2022_toptagTEST.scaled",
-                        qcd="hadmonotop2022_toptagTEST2.scaled", alpha_var="fjpt"),
-    "2023preBPix": dict(top="hadmonotop2023_toptagTEST.scaled",
-                        qcd="hadmonotop2023_toptagTEST.scaled", alpha_var="fjpt_bin"),
-}
-TEST, TEST2 = ERAS[YEAR]["top"], ERAS[YEAR]["qcd"]
-ALPHA_VAR = ERAS[YEAR]["alpha_var"]
+# Input file, era and output base from the command line (see effsf_cli.py).
+# setup() also changes into toptag/, so relative paths below resolve there.
+ARGS = base_parser(__doc__.splitlines()[0]).parse_args()
+CFG = setup(ARGS)
+FILE, ERA, LUMI = CFG.file, CFG.era, CFG.lumi
+# Histogram the data-side yields (alpha, N(Data)) are read from: `fjpt_bin`,
+# binned exactly like fjpt_cat (old 2022 test files: `fjpt`).
+ALPHA_VAR = ARGS.alpha_var
 
 VAR_LABEL = r"AK15 jet $p_{\mathrm{T}}$ [GeV]"
-OUTDIR = os.path.join("plots_effSF", "alpha", YEAR)  # plots_effSF/<kind>/<era>/
+OUTDIR = os.path.join(CFG.outbase, "alpha", ERA)  # plots_effSF_<version>/alpha/<era>/
 
 # The fjpt axis ends in a very wide 600-2000 GeV bin. It is drawn as an
 # overflow bin closing at X_MAX: bin CONTENTS are untouched, only the drawn
@@ -73,27 +52,22 @@ REGION_DATASET = {
     "wecr": "EGamma", "tecr": "EGamma", "gcr": "EGamma", "zecr": "EGamma",
 }
 
-# NOTE ON INPUT FILES: each alpha is computed from the SAME file as the MC it
-# is meant to correct -- TEST2 for the gcr / QCD-jet calibration, TEST for the
-# ttbar CRs / Top-jet calibration, matching plot_toptag_eff_toptagTEST.py. For
-# 2022 these are different MC samples; do not compare yields across them.
-
 JOBS = {
     # QCD-jet calibration: alpha from the photon CR alone.
     "alpha_gcr": dict(
-        file=TEST2,
+        file=FILE,
         series=[dict(regions=["gcr"], label=r"$\gamma$ CR",
                      color="black", marker="o")],
         title=r"$\gamma$ CR", sublabel="pre-tag, all bkg processes"),
     # Top-jet calibration: ONE alpha from the summed tmcr+tecr yields.
     "alpha_ttcr_combined": dict(
-        file=TEST,
+        file=FILE,
         series=[dict(regions=["tmcr", "tecr"], label=r"$t\bar{t}$ CR ($\mu$+e)",
                      color="black", marker="o")],
         title=r"$t\bar{t}$ CR ($\mu$+e)", sublabel="pre-tag, all bkg processes"),
     # Cross-check: is the combined alpha hiding a mu/e difference?
     "alpha_ttcr_split": dict(
-        file=TEST,
+        file=FILE,
         series=[dict(regions=["tmcr"], label=r"$t\bar{t}$($\mu$) CR",
                      color="#1f77b4", marker="s"),
                 dict(regions=["tecr"], label=r"$t\bar{t}$(e) CR",
@@ -122,7 +96,7 @@ def data_side_hists(raw):
     """
     if ALPHA_VAR not in raw["bkg"] or not any(
             len(h.axes["region"]) for h in raw["bkg"][ALPHA_VAR].values()):
-        raise SystemExit(f"'{ALPHA_VAR}' is missing or empty in this {YEAR} file"
+        raise SystemExit(f"'{ALPHA_VAR}' is missing or empty in {os.path.basename(FILE)}"
                          " -- it must be filled by the processor")
     cat_edges = next(iter(raw["bkg"]["fjpt_cat"].values())).axes["fjpt"].edges
     for kind in ("bkg", "data"):

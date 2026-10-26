@@ -1,9 +1,16 @@
 """Stacked background event counts per AK15 jet class (fjpt_cat).
 
-One plot per region: x-axis = the 8 truth-level jet classes (class1..class8),
-y-axis = number of events, stacked by background process. Backgrounds only --
-fjpt_cat carries truth quark/b-flavor matching (n_qinfj / n_binfj), so data and
-signal are empty for this variable by construction and no ratio panel is drawn.
+One plot per region: x-axis = the 8 truth-level jet classes (class1..class8)
+or the 3 aggregated classes, y-axis = number of events, stacked by background
+process. Backgrounds only -- fjpt_cat carries truth quark/b-flavor matching
+(n_qinfj / n_binfj), so data and signal are empty for this variable by
+construction and no ratio panel is drawn.
+
+Regions: every CR plus the combined tt(e+mu) CR "ttcr" (tmcr + tecr summed).
+
+    python studies/plot_class_counts_toptagTEST.py -f hadmonotop2023_toptagTEST3
+
+Outputs: plots_classcount_<version>/<era>/<tag mode>/{classcount,aggcount}_<region>.{pdf,png}
 """
 
 import warnings
@@ -16,31 +23,29 @@ import mplhep as hep
 import lz4.frame
 import cloudpickle
 
-# ─── Path resolution ────────────────────────────────────────────────────────
-# This script lives in toptag/studies/, but it reads the .scaled files from,
-# and writes its plot directory into, the analysis working directory two
-# levels up. Everything below therefore uses paths relative to that root, so
-# the script behaves identically no matter which directory it is run from.
-WORK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.chdir(WORK_DIR)
-
+from effsf_cli import base_parser, setup
 
 hep.style.use("CMS")
 
 # ─── Load ───────────────────────────────────────────────────────────────────
-INPUT_FILE = "hadmonotop2022_toptagTEST.scaled"
-LUMI = 7.99  # 2022preEE, fb^-1
+_args = base_parser(__doc__.splitlines()[0], alpha_var=False).parse_args()
+_cfg = setup(_args)  # also changes into toptag/
+LUMI = _cfg.lumi
 
-with open(INPUT_FILE, "rb") as f:
+with open(_cfg.file, "rb") as f:
     raw = cloudpickle.loads(lz4.frame.decompress(f.read()))
 
 bkg_data = raw["bkg"]
 
 VAR = "fjpt_cat"
-OUTDIR_BASE = "plots_2022_toptagTEST_0921_fjptcat"
+OUTDIR_BASE = os.path.join(_cfg.outbase.replace("plots_effSF_", "plots_classcount_"), _cfg.era)
 
 # ─── Config ──────────────────────────────────────────────────────────────────
-REGIONS = ["sr", "wmcr", "tmcr", "zmcr", "wecr", "tecr", "gcr", "zecr"]
+REGIONS = ["wmcr", "tmcr", "zmcr", "wecr", "tecr", "gcr", "zecr", "ttcr"]
+
+# Region -> regions in the file that are summed for it
+REGION_SOURCES = {r: [r] for r in REGIONS}
+REGION_SOURCES["ttcr"] = ["tmcr", "tecr"]
 
 REGION_LABEL = {
     "sr":   "SR",
@@ -51,6 +56,7 @@ REGION_LABEL = {
     "tecr": r"$t\bar{t}$(e) CR",
     "gcr":  "gamma CR",
     "zecr": "Z(ee) CR",
+    "ttcr": r"$t\bar{t}$(e+mu) CR",
 }
 
 # Per-region stack order (bottom → top); VV = WW+WZ+ZZ combined.
@@ -62,6 +68,7 @@ BKG_ORDER = {
     "tmcr": [r"W ($\ell\nu$) + Jets", "TT", "QCD Multijet", "VV", "ST", r"Z ($\ell\ell$) + Jets", r"Z ($\nu\nu$) + Jets", r"G + Jets"][::-1],
     "wecr": [r"W ($\ell\nu$) + Jets", "TT", "QCD Multijet", "VV", "ST", r"Z ($\ell\ell$) + Jets", r"Z ($\nu\nu$) + Jets", r"G + Jets"][::-1],
     "tecr": [r"W ($\ell\nu$) + Jets", "TT", "QCD Multijet", "VV", "ST", r"Z ($\ell\ell$) + Jets", r"Z ($\nu\nu$) + Jets", r"G + Jets"][::-1],
+    "ttcr": [r"W ($\ell\nu$) + Jets", "TT", "QCD Multijet", "VV", "ST", r"Z ($\ell\ell$) + Jets", r"Z ($\nu\nu$) + Jets", r"G + Jets"][::-1],
     "zecr": [r"Z ($\ell\ell$) + Jets", r"W ($\ell\nu$) + Jets", "TT", "QCD Multijet", "VV", "ST", r"Z ($\nu\nu$) + Jets", r"G + Jets"][::-1],
     "zmcr": [r"Z ($\ell\ell$) + Jets", r"W ($\ell\nu$) + Jets", "TT", "QCD Multijet", "VV", "ST", r"Z ($\nu\nu$) + Jets", r"G + Jets"][::-1],
     "gcr":  [r"G + Jets", r"W ($\ell\nu$) + Jets", "TT", "QCD Multijet", "VV", "ST", r"Z ($\ell\ell$) + Jets", r"Z ($\nu\nu$) + Jets"][::-1],
@@ -138,32 +145,29 @@ TAG_TITLE = {
 }
 
 
-def class_selector(class_id):
-    """Build the fjpt_cat UHI selection dict for one of the 8 jet classes."""
-    nq, nb = CLASS_DEF[class_id]["nq"], CLASS_DEF[class_id]["nb"]
-    sel = {"n_qinfj": slice(4, None, sum) if nq == "gt3" else nq}
-    if nb == "any":
-        sel["n_binfj"] = sum
-    elif nb == "ge1":
-        sel["n_binfj"] = slice(1, None, sum)
+def axis_mask(n_bins_flow, spec):
+    """Mask over an Integer(0, 10) axis incl. flow bins (index = value + 1)."""
+    m = np.zeros(n_bins_flow, dtype=bool)
+    if spec == "any":
+        m[:] = True
+    elif spec == "ge1":
+        m[2:] = True           # values >= 1, overflow included
+    elif spec == "gt3":
+        m[5:] = True           # values >= 4, overflow included
     else:
-        sel["n_binfj"] = nb
-    return sel
+        m[spec + 1] = True
+    return m
 
 
-def class_yield(h, region, class_id, cat_idx):
-    """Return (events, variance) for one region/class, summed over fjpt.
+def class_mask(class_id, shape):
+    """2D (n_qinfj, n_binfj) mask selecting one jet class, flow bins included."""
+    d = CLASS_DEF[class_id]
+    return np.outer(axis_mask(shape[0], d["nq"]), axis_mask(shape[1], d["nb"]))
 
-    cat_idx selects the TvsQCD bin, or None to sum over the whole axis.
-    """
-    sel = {"region": region, "fjpt": sum,
-           "TvsQCD": sum if cat_idx is None else cat_idx}
-    sel.update(class_selector(class_id))
-    acc = h[sel]
-    val, var = acc.value, acc.variance
-    val = val if np.isfinite(val) else 0.0
-    var = var if np.isfinite(var) else 0.0
-    return val, var
+
+def clean(a):
+    """Replace non-finite entries (bad MC weights) by 0."""
+    return np.where(np.isfinite(a), a, 0)
 
 
 def has_region(h, region):
@@ -174,13 +178,29 @@ def has_region(h, region):
     return region in list(h.axes["region"])
 
 
-def class_yields(h, region, cat_idx):
-    """Return (values, variances) arrays over the 8 classes for one histogram."""
+def class_yields_one(h, region, cat_idx):
+    """(values, variances) over the 8 classes for one file region, fjpt summed.
+
+    cat_idx selects the TvsQCD bin, or None to sum over the whole axis.
+    """
     if not has_region(h, region):
         return np.zeros(len(CLASS_IDS)), np.zeros(len(CLASS_IDS))
-    out = [class_yield(h, region, cid, cat_idx) for cid in CLASS_IDS]
-    vals, vars_ = zip(*out)
-    return np.array(vals), np.array(vars_)
+    hr = h[{"region": region}]
+    # axes: fjpt, TvsQCD (no flow), n_qinfj, n_binfj; fjpt flow excluded
+    v = clean(hr.values(flow=True))[1:-1].sum(axis=0)
+    w = clean(hr.variances(flow=True))[1:-1].sum(axis=0)
+    v, w = (v.sum(axis=0), w.sum(axis=0)) if cat_idx is None else (v[cat_idx], w[cat_idx])
+    masks = [class_mask(cid, v.shape) for cid in CLASS_IDS]
+    return np.array([v[m].sum() for m in masks]), np.array([w[m].sum() for m in masks])
+
+
+def class_yields(h, region, cat_idx):
+    """(values, variances) over the 8 classes, summed over REGION_SOURCES[region]."""
+    vals, vars_ = np.zeros(len(CLASS_IDS)), np.zeros(len(CLASS_IDS))
+    for src in REGION_SOURCES[region]:
+        v, w = class_yields_one(h, src, cat_idx)
+        vals, vars_ = vals + v, vars_ + w
+    return vals, vars_
 
 
 def get_bkg_arrays(region, cat_idx):
@@ -193,7 +213,7 @@ def get_bkg_arrays(region, cat_idx):
     for label in BKG_ORDER[region]:
         if label == "VV":
             present = [p for p in VV_PROCS
-                       if p in bkg_data[VAR] and has_region(bkg_data[VAR][p], region)]
+                       if p in bkg_data[VAR]]
             if not present:
                 continue
             vals = np.zeros(len(CLASS_IDS))

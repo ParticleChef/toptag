@@ -6,11 +6,14 @@ scaled to data by the pre-tag normalization factor alpha = N(Data)/N(MC):
 
   QCD-jet (gamma CR, gamma+jets sample, B-jet subtracted):
     eff_Data = [N(Data,tag) - alpha*SF_B*N(GJ,B,tag)]
-             / [N(Data)     - alpha*SF_B*N(GJ,B)]
+             / [N(Data)     - alpha*N(GJ,B)]
 
   Top-jet (ttbar CRs, B-jet and QCD-jet subtracted):
     eff_Data = [N(Data,tag) - alpha*(SF_B*N(B,tag) + SF_QCD*N(QCD,tag))]
-             / [N(Data)     - alpha*(SF_B*N(B)     + SF_QCD*N(QCD))]
+             / [N(Data)     - alpha*(N(B)          + N(QCD))]
+
+  SF_B / SF_QCD correct the TAG RATE of the subtracted classes, so they
+  multiply only the tagged terms; the pre-tag terms are fixed by alpha alone.
 
   SF = eff_Data / eff_MC
 
@@ -18,63 +21,56 @@ Data yields and the all-class MC total (alpha) come from `fjpt_bin`, which has
 data; the class-split MC yields come from `fjpt_cat`, which does not -- truth
 matching is undefined for data. Both have the same pT edges, and fjpt_bin MC
 must equal fjpt_cat MC summed over its class axes (checked on every run), so
-they combine bin-by-bin. (2022 test files: `fjpt` instead, see ERAS.)
+they combine bin-by-bin. (Old 2022 test files: `--alpha-var fjpt`.)
 
 alpha is taken PER CONTROL REGION, per pT bin -- see plot_alpha_toptagTEST.py
 and report_alpha_toptagTEST.txt.
+
+Usage:
+  python studies/plot_toptag_eff_data_toptagTEST.py -f hadmonotop2023_toptagTEST4 \\
+      [-e ERA] [--mc-eff] [--data-eff]
+Always writes the eff_MC + eff_Data + SF plots; --mc-eff / --data-eff add
+single-efficiency plots without the SF panel.
 """
 
 import warnings
 warnings.filterwarnings("ignore")
 
 import os
-import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
 import lz4.frame
 import cloudpickle
 
-# ─── Path resolution ────────────────────────────────────────────────────────
-# This script lives in toptag/studies/, but it reads the .scaled files from,
-# and writes its plot directory into, the toptag/ directory one level up.
-# Everything below therefore uses paths relative to that root, so the script
-# behaves identically no matter which directory it is run from.
-WORK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-os.chdir(WORK_DIR)
-
+from effsf_cli import base_parser, setup
+import sf_json
 
 hep.style.use("CMS")
 
-# Data-taking era: optional first command-line argument, default 2022preEE.
-# Selects the input files, the luminosity label and the output sub-directory.
-YEAR = sys.argv[1] if len(sys.argv) > 1 else "2022preEE"
-
-# fb^-1, same values as toptag/histmaker.py LUMIS
-LUMIS = {"2022preEE": 7.99, "2022postEE": 26.68,
-         "2023preBPix": 17.96, "2023postBPix": 9.68}
-LUMI = LUMIS[YEAR]
-
-# Input files per era. "top" feeds the ttbar-CR (Top-jet) jobs, "qcd" the
-# gamma-CR (QCD-jet) jobs -- the 2022 "top" file has no G + Jets sample, so
-# 2022 needs a second file. "alpha_var" is the histogram the data-side yields
-# (alpha, N(Data)) are read from: `fjpt_bin`, binned exactly like fjpt_cat.
-# The 2022 test files predate fjpt_bin and use `fjpt`, which has the same
-# edges there. Efficiencies always come from fjpt_cat.
-ERAS = {
-    "2022preEE":   dict(top="hadmonotop2022_toptagTEST.scaled",
-                        qcd="hadmonotop2022_toptagTEST2.scaled", alpha_var="fjpt"),
-    "2023preBPix": dict(top="hadmonotop2023_toptagTEST.scaled",
-                        qcd="hadmonotop2023_toptagTEST.scaled", alpha_var="fjpt_bin"),
-}
-TEST, TEST2 = ERAS[YEAR]["top"], ERAS[YEAR]["qcd"]
-ALPHA_VAR = ERAS[YEAR]["alpha_var"]
+# Input file, era and output base from the command line (see effsf_cli.py).
+# setup() also changes into toptag/, so relative paths below resolve there.
+_parser = base_parser(__doc__.splitlines()[0])
+_parser.add_argument("--mc-eff", action="store_true",
+                     help="also write MC-only efficiency plots (<name>_mc)")
+_parser.add_argument("--data-eff", action="store_true",
+                     help="also write Data-only efficiency plots (<name>_data)")
+_parser.add_argument("--json", metavar="PATH",
+                     help="correctionlib SF file (default:"
+                          " plots_effSF_<version>/sf_json/toptag_sf_<era>.json)")
+ARGS = _parser.parse_args()
+CFG = setup(ARGS)
+FILE, ERA, LUMI = CFG.file, CFG.era, CFG.lumi
+# Histogram the data-side yields (alpha, N(Data)) are read from: `fjpt_bin`,
+# binned exactly like fjpt_cat (old 2022 test files: `fjpt`).
+ALPHA_VAR = ARGS.alpha_var
 
 VAR_LABEL = r"AK15 jet $p_{\mathrm{T}}$ [GeV]"
-OUTDIR = os.path.join("plots_effSF", "effdata", YEAR)  # plots_effSF/<kind>/<era>/
+OUTDIR = os.path.join(CFG.outbase, "effdata", ERA)  # plots_effSF_<version>/effdata/<era>/
 X_MAX = 1000.0  # the 600-2000 GeV bin is drawn as an overflow bin closing here
 
 TAG_PASS = 1  # TvsQCD axis edges [0, 0.33, 1] -> bin 1 = tagged (WP = 0.33)
+WP = 0.33
 
 CLASS_DEF = {
     1: dict(nq=0,     nb=0),
@@ -97,6 +93,11 @@ REGION_DATASET = {
 SF_B_CENTRAL = 1.0
 SF_B_UNCERTAINTY = 0.5          # no dedicated CR exists for the B-jet class
 GJ_BJET_NORM_UNCERTAINTY = 0.5  # 50% norm. uncertainty on the GJ B-jet MC
+
+# Plot colors, shared with plot_toptag_eff_toptagTEST.py (MC_COLOR)
+MC_COLOR = "#1f77b4"
+DATA_COLOR = "#ff7f0e"
+SF_COLOR = "black"
 
 
 _cache = {}
@@ -131,7 +132,7 @@ def data_side_hists(raw):
     """
     if ALPHA_VAR not in raw["bkg"] or not any(
             len(h.axes["region"]) for h in raw["bkg"][ALPHA_VAR].values()):
-        raise SystemExit(f"'{ALPHA_VAR}' is missing or empty in this {YEAR} file"
+        raise SystemExit(f"'{ALPHA_VAR}' is missing or empty in {os.path.basename(FILE)}"
                          " -- it must be filled by the processor")
     cat_edges = next(iter(raw["bkg"]["fjpt_cat"].values())).axes["fjpt"].edges
     for kind in ("bkg", "data"):
@@ -273,7 +274,8 @@ def measure(filename, group, regions, procs, sf_qcd=None):
     if group == "QCD-jet":
         def formula(dt, dT, mT, btag, btot, sfb):
             a = dT / mT
-            return (dt - a * sfb * btag) / (dT - a * sfb * btot)
+            # SF_B corrects the tag rate only: pre-tag B yield is alpha*btot
+            return (dt - a * sfb * btag) / (dT - a * btot)
 
         inputs = [(d_tag, np.sqrt(vd_tag)), (d_tot, np.sqrt(vd_tot)),
                   (m_tot, np.sqrt(vm_tot)),
@@ -287,8 +289,9 @@ def measure(filename, group, regions, procs, sf_qcd=None):
 
         def formula(dt, dT, mT, btag, btot, qtag, qtot, sfb, sfq):
             a = dT / mT
+            # SFs correct the tag rate only: pre-tag yields are alpha*(btot+qtot)
             return ((dt - a * (sfb * btag + sfq * qtag))
-                    / (dT - a * (sfb * btot + sfq * qtot)))
+                    / (dT - a * (btot + qtot)))
 
         inputs = [(d_tag, np.sqrt(vd_tag)), (d_tot, np.sqrt(vd_tot)),
                   (m_tot, np.sqrt(vm_tot)),
@@ -327,11 +330,14 @@ def measure(filename, group, regions, procs, sf_qcd=None):
 
 # ─── Plot ────────────────────────────────────────────────────────────────────
 
-def make_plot(key, cfg, series, zoom=False):
+def make_plot(key, cfg, series, zoom=False, mc_color=MC_COLOR,
+              mc_label="MC", sf_color=SF_COLOR):
     """Efficiency (MC + one or more Data variants) with an SF ratio panel.
 
     zoom=True re-draws the same points on the physical 0-1 efficiency range;
-    points outside it simply fall off the axis.
+    points outside it simply fall off the axis. sf_color=None draws each SF
+    series in its Data series' color (needed when several Data series share
+    the ratio panel).
     """
     res0 = series[0]["res"]
     edges = res0["edges"].copy()
@@ -347,8 +353,8 @@ def make_plot(key, cfg, series, zoom=False):
     offs = [(i - (n - 1) / 2) * 0.12 * 2 * xerr for i in range(n)]
 
     ax.errorbar(centers + offs[0], res0["eff_mc"], yerr=res0["eff_mc_err"], xerr=xerr,
-                fmt="o", color="black", markersize=7, linewidth=1.5,
-                capsize=0, label="MC (simulation truth)", zorder=5)
+                fmt="o", color=mc_color, markersize=7, linewidth=1.5,
+                capsize=0, label=mc_label, zorder=5)
     for i, s in enumerate(series):
         ax.errorbar(centers + offs[i + 1], s["res"]["eff_data"],
                     yerr=s["res"]["eff_data_err"], xerr=xerr,
@@ -356,7 +362,7 @@ def make_plot(key, cfg, series, zoom=False):
                     linewidth=1.5, capsize=0, label=s["label"], zorder=6 + i)
         rax.errorbar(centers + offs[i + 1], s["res"]["sf"],
                      yerr=s["res"]["sf_err"], xerr=xerr,
-                     fmt=s["marker"], color=s["color"], markersize=6,
+                     fmt=s["marker"], color=sf_color or s["color"], markersize=6,
                      linewidth=1.5, capsize=0, zorder=5 + i)
 
     # An efficiency above this line is unphysical.
@@ -393,6 +399,55 @@ def make_plot(key, cfg, series, zoom=False):
     plt.close(fig)
 
 
+def make_eff_only_plot(key, cfg, res, which, data_label="Data",
+                       data_marker="s", zoom=False):
+    """Single efficiency (which = "mc" or "data") vs pT, no SF panel.
+
+    Saved as <key>_<which>[_zoom]. The MC efficiency is always physical, so
+    its plot uses the zoomed 0-1 range; the Data one follows `zoom` like
+    make_plot.
+    """
+    if which == "mc":
+        eff, err, color, label = res["eff_mc"], res["eff_mc_err"], MC_COLOR, "MC"
+        ylim, marker = cfg["zoomlim"], "o"
+    else:
+        eff, err, color, label = res["eff_data"], res["eff_data_err"], DATA_COLOR, data_label
+        ylim, marker = (cfg["zoomlim"] if zoom else cfg["ylim"]), data_marker
+
+    edges = res["edges"].copy()
+    edges[-1] = X_MAX  # draw the last bin as an overflow bin
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    xerr = 0.5 * (edges[1:] - edges[:-1])
+
+    fig, ax = plt.subplots(figsize=(10, 9))
+    ax.errorbar(centers, eff, yerr=err, xerr=xerr, fmt=marker, color=color,
+                markersize=7, linewidth=1.5, capsize=0, label=label, zorder=5)
+    ax.axhline(1.0, color="gray", linestyle=":", linewidth=2.0, zorder=1)
+
+    ax.set_ylim(*ylim)
+    ax.set_xlim(edges[0], edges[-1])
+    ax.set_xlabel(VAR_LABEL)
+    ax.set_ylabel(cfg["ylabel"])
+    ax.grid(axis="y", color="gray", linestyle="-", linewidth=0.6,
+            alpha=0.4, zorder=0)
+    ax.set_axisbelow(True)
+
+    leg = ax.legend(loc=cfg["legloc"], fontsize=13,
+                    title=f"{cfg['label']}\n{cfg['sublabel']}")
+    leg.get_title().set_ha("center")
+    leg.get_title().set_fontweight("bold")
+    leg.get_title().set_fontsize(10)
+
+    hep.cms.label("Private Work", data=(which == "data"), lumi=LUMI, com=13.6,
+                  ax=ax, fontsize=20)
+
+    os.makedirs(OUTDIR, exist_ok=True)
+    base = os.path.join(OUTDIR, f"{key}_{which}" + ("_zoom" if zoom else ""))
+    fig.savefig(base + ".pdf", bbox_inches="tight")
+    fig.savefig(base + ".png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 def report(cfg, label, res):
     """Print the full per-bin table for one measurement variant."""
     edges = res["edges"].copy()
@@ -419,7 +474,7 @@ def report(cfg, label, res):
 
 JOBS_QCD = {
     "effdata_qcdjet_gcr": dict(
-        file=TEST2, group="QCD-jet", regions=["gcr"], procs=[r"G + Jets"],
+        file=FILE, group="QCD-jet", regions=["gcr"], procs=[r"G + Jets"],
         label=r"$\gamma$ CR", sublabel=r"QCD-jet (class 1,3), $\gamma$+jets",
         ylabel="Top-tag mis-tag rate", ylim=(0, 0.08), sflim=(0, 4),
         zoomlim=(0, 0.08), zoomsflim=(0, 4), legloc="upper right"),
@@ -427,37 +482,43 @@ JOBS_QCD = {
 
 JOBS_TOP = {
     "effdata_topjet_ttcr_combined": dict(
-        file=TEST, group="Top-jet", regions=["tmcr", "tecr"], procs=None,
+        file=FILE, group="Top-jet", regions=["tmcr", "tecr"], procs=None,
         label=r"$t\bar{t}$ CR ($\mu$+e)", sublabel="Top-jet (class 5,6,7,8), all bkg",
         ylabel="Top-tag efficiency", ylim=(-5, 25), sflim=(-6, 27),
         zoomlim=(0, 1.5), zoomsflim=(0, 3), legloc="upper left"),
     "effdata_topjet_tmcr": dict(
-        file=TEST, group="Top-jet", regions=["tmcr"], procs=None,
+        file=FILE, group="Top-jet", regions=["tmcr"], procs=None,
         label=r"$t\bar{t}$($\mu$) CR", sublabel="Top-jet (class 5,6,7,8), all bkg",
         ylabel="Top-tag efficiency", ylim=(-5, 25), sflim=(-6, 27),
         zoomlim=(0, 1.5), zoomsflim=(0, 3), legloc="upper left"),
     "effdata_topjet_tecr": dict(
-        file=TEST, group="Top-jet", regions=["tecr"], procs=None,
+        file=FILE, group="Top-jet", regions=["tecr"], procs=None,
         label=r"$t\bar{t}$(e) CR", sublabel="Top-jet (class 5,6,7,8), all bkg",
         ylabel="Top-tag efficiency", ylim=(-5, 25), sflim=(-6, 27),
         zoomlim=(0, 1.5), zoomsflim=(0, 3), legloc="upper left"),
 }
 
 sf_qcd = None
+results = {}  # key -> SF-corrected measurement, for the correctionlib file
 for key, cfg in JOBS_QCD.items():
     print(f"{key} ...")
     res = measure(cfg["file"], cfg["group"], cfg["regions"], cfg["procs"])
     report(cfg, "B-jet subtracted", res)
     series = [dict(res=res, label="Data (B-jet subtracted)",
-                   color="#d62728", marker="s")]
+                   color=DATA_COLOR, marker="s")]
     make_plot(key, cfg, series)
+    if ARGS.mc_eff:
+        make_eff_only_plot(key, cfg, res, "mc")
+    if ARGS.data_eff:
+        make_eff_only_plot(key, cfg, res, "data", series[0]["label"], "s")
     sf_qcd = (res["sf"], res["sf_err"])  # feeds the Top-jet subtraction
+    results[key] = res
 
 # Two subtraction variants for the Top-jet class:
 #   raw       - README's boxed eff_Data formula, uncorrected MC B/QCD yields
 #   corrected - the same with SF_B and the SF_QCD just derived applied to the
 #               subtraction terms, per toptag/docs/scalefactors.md
-# They differ enough to matter, so both are shown rather than one being picked.
+# Both are printed; only the SF-corrected one is plotted.
 for key, cfg in JOBS_TOP.items():
     print(f"{key} ...")
     res_raw = measure(cfg["file"], cfg["group"], cfg["regions"], cfg["procs"])
@@ -465,11 +526,43 @@ for key, cfg in JOBS_TOP.items():
                       sf_qcd=sf_qcd)
     report(cfg, "raw subtraction", res_raw)
     report(cfg, "SF-corrected subtraction", res_cor)
-    series = [dict(res=res_raw, label="Data (raw subtraction)",
-                   color="#d62728", marker="s"),
-              dict(res=res_cor, label=r"Data ($SF$-corrected subtraction)",
-                   color="#1f77b4", marker="^")]
+    results[key] = res_cor
+    series = [dict(res=res_cor, label=r"Data ($SF$-corrected subtraction)",
+                   color=DATA_COLOR, marker="^")]
     make_plot(key, cfg, series, zoom=False)
     make_plot(key, cfg, series, zoom=True)
+    if ARGS.mc_eff:
+        make_eff_only_plot(key, cfg, res_cor, "mc")
+    if ARGS.data_eff:
+        for zoom in (False, True):
+            make_eff_only_plot(key, cfg, res_cor, "data", series[0]["label"],
+                               "^", zoom=zoom)
 
+
+
+# ─── correctionlib output ────────────────────────────────────────────────────
+
+def b_jet_eff_mc(res):
+    """MC B-jet tag efficiency from the B-jet subtraction terms of a measurement."""
+    b = res["terms"]["B-jet"]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.where(b["tot"] > 0, b["tag"] / b["tot"], np.nan)
+
+
+def write_sf_json(qcd, top, path):
+    """correctionlib file: SF_QCD (gamma CR), SF_Top (ttbar e+mu, SF-corrected),
+    SF_B = 1 +- 0.5, and the MC efficiencies of the same measurements."""
+    nbin = len(top["sf"])
+    sfs = {"top": sf_json.sanitize(top["sf"], top["sf_err"], "SF_Top"),
+           "qcd": sf_json.sanitize(qcd["sf"], qcd["sf_err"], "SF_QCD"),
+           "b": (np.full(nbin, SF_B_CENTRAL), np.full(nbin, SF_B_UNCERTAINTY))}
+    effs = {"top": sf_json.sanitize(top["eff_mc"], top["eff_mc_err"], "eff_MC Top", (0.0, 0.0))[0],
+            "qcd": sf_json.sanitize(qcd["eff_mc"], qcd["eff_mc_err"], "eff_MC QCD", (0.0, 0.0))[0],
+            "b": sf_json.sanitize(b_jet_eff_mc(top), np.zeros(nbin), "eff_MC B", (0.0, 0.0))[0]}
+    cset = sf_json.build_correction_set(ERA, top["edges"], sfs, effs, WP)
+    sf_json.write(cset, path)
+
+
+write_sf_json(results["effdata_qcdjet_gcr"], results["effdata_topjet_ttcr_combined"],
+              ARGS.json or os.path.join(CFG.outbase, "sf_json", f"toptag_sf_{ERA}.json"))
 print(f"Done. Plots saved in {OUTDIR}/")

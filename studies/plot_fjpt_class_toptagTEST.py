@@ -21,7 +21,7 @@ os.chdir(WORK_DIR)
 hep.style.use("CMS")
 
 # ─── Load ───────────────────────────────────────────────────────────────────
-INPUT_FILE = "hadmonotop2022_toptagTEST.scaled"
+INPUT_FILE = "toptag/old_results/scaled/hadmonotop2022_toptagTEST.scaled"
 LUMI = 7.99  # 2022preEE, fb^-1
 
 with open(INPUT_FILE, "rb") as f:
@@ -37,7 +37,7 @@ VAR_CAT = "fjpt_cat"
 VAR_LABEL = r"AK15 jet $p_{\mathrm{T}}$ [GeV]"
 
 # ─── Output directory ────────────────────────────────────────────────────────
-OUTDIR_BASE = "plots_2022_toptagTEST_0917"
+OUTDIR_BASE = "toptag/old_results/plots_2022_toptagTEST_0917"
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 REGION_DATASET = {

@@ -10,6 +10,13 @@ Jet preselection (matches decaf ids.py isGoodAK15):
   - pT > 160 GeV, |η| < 2.4, tight+tightLepVeto jetId
   - Leading jet required with pT > 250 GeV
 
+Signal-region event selection:
+  - MET > 350 GeV
+  - no loose electron, muon or photon
+  - no PNet-loose b-tagged AK4 jet outside dR < 1.5 of the leading AK15 jet
+
+Events are weighted by sign(genWeight).
+
 Usage
 -----
 Quick test (1 file per chunk, ~few minutes):
@@ -295,7 +302,12 @@ def compute_roc(sig_scores, sig_weights, bkg_scores, bkg_weights):
     """
     Build weighted histograms then sweep threshold right→left to
     get signal efficiency and background efficiency curves.
-    Returns (sig_eff, bkg_eff, thresholds, auc).
+    Returns (sig_eff, bkg_eff, thresholds, auc); entry i is the cut
+    TvsQCD >= thresholds[i], with thresholds descending from 1 to 0.
+
+    Before 2026-10-25 the thresholds were paired in the wrong order
+    (printed t was the cut 0.999 - t, and AUC came out as 1 - AUC);
+    see reports/report_toptag_WP_ROC_2022preEE_20261025.md.
 
     NLO samples have ~20% negative genWeights.  The denominator must
     use the net sum (not abs), otherwise efficiency at threshold=0
@@ -315,13 +327,17 @@ def compute_roc(sig_scores, sig_weights, bkg_scores, bkg_weights):
     sig_total = np.sum(sig_weights)
     bkg_total = np.sum(bkg_weights)
 
-    # Cumulative sum from high score to low → events passing threshold t
-    sig_pass = np.cumsum(sig_hist[::-1])[::-1]
-    bkg_pass = np.cumsum(bkg_hist[::-1])[::-1]
+    # Cumulative sum from high score to low, in descending-threshold order:
+    # entry i = events with score >= thr_desc[i]
+    thr_desc = edges[:-1][::-1]
+    sig_pass = np.cumsum(sig_hist[::-1])
+    bkg_pass = np.cumsum(bkg_hist[::-1])
 
-    sig_eff = np.concatenate([[0.], sig_pass / sig_total, [1.]])
-    bkg_eff = np.concatenate([[0.], bkg_pass / bkg_total, [1.]])
-    thrs    = np.concatenate([[1.], edges[:-1][::-1], [0.]])
+    # Prepend the cut above every score (nothing passes); the last entry
+    # (threshold 0) already has efficiency 1.
+    sig_eff = np.concatenate([[0.], sig_pass / sig_total])
+    bkg_eff = np.concatenate([[0.], bkg_pass / bkg_total])
+    thrs    = np.concatenate([[1.], thr_desc])
 
     auc = float(np.trapz(sig_eff, bkg_eff))
     return sig_eff, bkg_eff, thrs, auc

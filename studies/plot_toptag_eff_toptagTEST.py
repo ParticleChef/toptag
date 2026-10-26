@@ -5,13 +5,14 @@
 For the Top-jet class this is the tagging efficiency; for the QCD-jet class it
 is the mis-tag rate. Each job declares its own input file, jet class, control
 region(s) and process selection -- see JOBS below.
+
+Usage: python studies/plot_toptag_eff_toptagTEST.py -f hadmonotop2023_toptagTEST4 [-e ERA]
 """
 
 import warnings
 warnings.filterwarnings("ignore")
 
 import os
-import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -19,43 +20,18 @@ import mplhep as hep
 import lz4.frame
 import cloudpickle
 
-# ─── Path resolution ────────────────────────────────────────────────────────
-# This script lives in toptag/studies/, but it reads the .scaled files from,
-# and writes its plot directory into, the toptag/ directory one level up.
-# Everything below therefore uses paths relative to that root, so the script
-# behaves identically no matter which directory it is run from.
-WORK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-os.chdir(WORK_DIR)
-
+from effsf_cli import base_parser, setup
 
 hep.style.use("CMS")
 
-# Data-taking era: optional first command-line argument, default 2022preEE.
-# Selects the input files, the luminosity label and the output sub-directory.
-YEAR = sys.argv[1] if len(sys.argv) > 1 else "2022preEE"
-
-# fb^-1, same values as toptag/histmaker.py LUMIS
-LUMIS = {"2022preEE": 7.99, "2022postEE": 26.68,
-         "2023preBPix": 17.96, "2023postBPix": 9.68}
-LUMI = LUMIS[YEAR]
-
-# Input files per era. "top" feeds the ttbar-CR (Top-jet) jobs, "qcd" the
-# gamma-CR (QCD-jet) jobs -- the 2022 "top" file has no G + Jets sample, so
-# 2022 needs a second file. "alpha_var" is the histogram the data-side yields
-# (alpha, N(Data)) are read from: `fjpt_bin`, binned exactly like fjpt_cat.
-# The 2022 test files predate fjpt_bin and use `fjpt`, which has the same
-# edges there. Efficiencies always come from fjpt_cat.
-ERAS = {
-    "2022preEE":   dict(top="hadmonotop2022_toptagTEST.scaled",
-                        qcd="hadmonotop2022_toptagTEST2.scaled", alpha_var="fjpt"),
-    "2023preBPix": dict(top="hadmonotop2023_toptagTEST.scaled",
-                        qcd="hadmonotop2023_toptagTEST.scaled", alpha_var="fjpt_bin"),
-}
-TEST, TEST2 = ERAS[YEAR]["top"], ERAS[YEAR]["qcd"]
+# Input file, era and output base from the command line (see effsf_cli.py).
+# setup() also changes into toptag/, so relative paths below resolve there.
+CFG = setup(base_parser(__doc__.splitlines()[0], alpha_var=False).parse_args())
+FILE, ERA, LUMI = CFG.file, CFG.era, CFG.lumi
 
 VAR = "fjpt_cat"
 VAR_LABEL = r"AK15 jet $p_{\mathrm{T}}$ [GeV]"
-OUTDIR = os.path.join("plots_effSF", "eff", YEAR)  # plots_effSF/<kind>/<era>/
+OUTDIR = os.path.join(CFG.outbase, "eff", ERA)  # plots_effSF_<version>/eff/<era>/
 
 # The fjpt axis ends in a very wide 600-2000 GeV bin. It is drawn as an
 # overflow bin closing at X_MAX: bin CONTENTS are untouched, only the drawn
@@ -86,35 +62,33 @@ AGG_GROUPS = {
 # TvsQCD axis edges are [0, 0.33, 1] -> bin 0 = fail, bin 1 = pass (WP = 0.33)
 TAG_FAIL, TAG_PASS = 0, 1
 
+MC_COLOR = "#1f77b4"  # same MC color as plot_toptag_eff_data_toptagTEST.py
+
 # ─── Jobs ────────────────────────────────────────────────────────────────────
 # procs=None means "sum over every background process in the file".
-#
-# NOTE ON INPUT FILES: Top-jet jobs read TEST, QCD-jet jobs read TEST2 (see
-# ERAS). For 2022 these are different MC test samples -- do not compare their
-# absolute yields.
 
 JOBS = {
     "eff_toptag_tmcr": dict(
-        file=TEST, group="Top-jet", regions=["tmcr"], procs=None,
+        file=FILE, group="Top-jet", regions=["tmcr"], procs=None,
         label=r"$t\bar{t}$($\mu$) CR", sublabel="Top-jet (class 5,6,7,8), all bkg",
         ylabel="Top-tag efficiency", ylim=(0, 1.35), ygrid=0.2),
     "eff_toptag_tecr": dict(
-        file=TEST, group="Top-jet", regions=["tecr"], procs=None,
+        file=FILE, group="Top-jet", regions=["tecr"], procs=None,
         label=r"$t\bar{t}$(e) CR", sublabel="Top-jet (class 5,6,7,8), all bkg",
         ylabel="Top-tag efficiency", ylim=(0, 1.35), ygrid=0.2),
     "eff_toptag_combined": dict(
-        file=TEST, group="Top-jet", regions=["tmcr", "tecr"], procs=None,
+        file=FILE, group="Top-jet", regions=["tmcr", "tecr"], procs=None,
         label=r"$t\bar{t}$ CR ($\mu$+e)", sublabel="Top-jet (class 5,6,7,8), all bkg",
         ylabel="Top-tag efficiency", ylim=(0, 1.35), ygrid=0.2),
     # QCD-jet mis-tag rate from the G+Jets sample in the photon CR.
     "eff_qcdjet_gcr": dict(
-        file=TEST2, group="QCD-jet", regions=["gcr"], procs=[r"G + Jets"],
+        file=FILE, group="QCD-jet", regions=["gcr"], procs=[r"G + Jets"],
         label=r"$\gamma$ CR", sublabel=r"QCD-jet (class 1,3), $\gamma$+jets",
         ylabel="Top-tag mis-tag rate", ylim=(0, 1.35), ygrid=0.2),
     # Same numbers, zoomed: the mis-tag rate is ~0.03 and is unreadable on the
     # 0-1.35 axis used for direct comparison with the Top-jet plots.
     "eff_qcdjet_gcr_zoom": dict(
-        file=TEST2, group="QCD-jet", regions=["gcr"], procs=[r"G + Jets"],
+        file=FILE, group="QCD-jet", regions=["gcr"], procs=[r"G + Jets"],
         label=r"$\gamma$ CR", sublabel=r"QCD-jet (class 1,3), $\gamma$+jets",
         ylabel="Top-tag mis-tag rate", ylim=(0, 0.06), ygrid=0.01),
 }
@@ -215,8 +189,8 @@ def make_eff_plot(key):
     fig, ax = plt.subplots(figsize=(10, 9))
 
     ax.errorbar(centers, eff, yerr=err, xerr=xerr,
-                fmt="o", color="black", markersize=7,
-                linewidth=1.5, capsize=0, label="MC efficiency", zorder=5)
+                fmt="o", color=MC_COLOR, markersize=7,
+                linewidth=1.5, capsize=0, label="MC", zorder=5)
 
     ax.set_ylim(*cfg["ylim"])
     ax.set_xlim(edges[0], edges[-1])
